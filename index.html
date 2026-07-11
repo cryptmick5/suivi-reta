@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#050506">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Suivi Rétatrutide + SIBO/IMO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050506; --card:#101014; --card2:#17171d; --ink:#e8e2d4; --muted:#9b9484;
+  --gold:#d4af37; --gold-dark:#1a1408; --gold-soft:rgba(212,175,55,.12);
+  --line:rgba(212,175,55,.22); --line-soft:rgba(212,175,55,.10);
+  --ok:#57c98a; --ok-soft:rgba(87,201,138,.13);
+  --warn:#e8985a; --warn-soft:rgba(232,152,90,.13);
+  --bad:#e06c6c; --bad-soft:rgba(224,108,108,.13);
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Manrope,ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:80px}
+h1,h2,h3,.serif{font-family:Cinzel,"Trajan Pro",Georgia,serif;letter-spacing:.03em}
+#warnBanner{background:#170b08;border-bottom:1px solid rgba(224,108,108,.35);color:#e5b8a8;font-size:11.5px;line-height:1.45;padding:8px 14px;text-align:center}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+header h1{font-size:16px;color:var(--gold)}
+header .sub{font-size:12px;color:var(--muted);font-family:Manrope}
+main{max-width:760px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;margin-bottom:12px;color:var(--gold);display:flex;align-items:center;gap:8px}
+.card h2 svg{flex:none}
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,12,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;z-index:50}
+nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:10px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:Manrope}
+nav button svg{width:20px;height:20px}
+nav button.active{color:var(--gold);font-weight:700}
+.ico{width:17px;height:17px;vertical-align:-3px;flex:none}
+nav button .ico{width:20px;height:20px;vertical-align:0}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+.result-box{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;background:var(--card2)}
+.result-box .val{font-family:Cinzel;font-size:19px;font-weight:700;color:var(--gold)}
+.result-box .lab{font-size:11px;color:var(--muted);margin-top:3px}
+.zone-card{border:1px solid var(--line-soft);border-radius:12px;padding:11px;margin-bottom:8px}
+.zone-card b{color:var(--gold);font-size:13px}
+.zone-card p{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.steps li{font-size:13px;padding:5px 0;list-style:none;counter-increment:step}
+.steps li::before{content:counter(step);display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;background:var(--gold-soft);color:var(--gold);font-size:11px;font-weight:700;margin-right:8px}
+.steps{counter-reset:step}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:transparent;border-radius:999px;padding:7px 15px;font-size:13px;cursor:pointer;color:var(--ink);font-family:Manrope}
+.btn:hover{border-color:var(--gold)}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:var(--gold-dark);font-weight:700}
+.btn.small{padding:4px 11px;font-size:12px}
+.btn.danger{color:var(--bad);border-color:rgba(224,108,108,.4)}
+select,input[type=number],input[type=date],input[type=text],textarea{border:1px solid var(--line);border-radius:9px;padding:7px 9px;font-size:13px;background:#0b0b0e;color:var(--ink);max-width:100%;font-family:Manrope;color-scheme:dark}
+input[type=number]{width:74px}
+textarea{width:100%;min-height:60px}
+.badge{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600}
+.badge.gold{background:var(--gold-soft);color:var(--gold)}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+.meal{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:var(--card)}
+.meal-head{background:var(--card2);padding:10px 13px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.meal-head b{font-size:13.5px}
+.meal-head .tot{font-size:12px;color:var(--muted)}
+.item{display:flex;gap:6px;align-items:center;padding:7px 11px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.item select{flex:1;min-width:130px}
+.item .kp{font-size:11.5px;color:var(--muted);min-width:92px;text-align:right}
+.xbtn{border:0;background:none;color:var(--bad);font-size:15px;cursor:pointer;padding:0 4px}
+.recipe-instr{padding:10px 13px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted);background:rgba(212,175,55,.04)}
+.totbar{position:sticky;top:0;z-index:10;display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px 15px;margin-bottom:12px;flex-wrap:wrap}
+.totbar .big{font-size:17px;font-weight:700;font-family:Cinzel}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line-soft);text-align:left}
+th{color:var(--gold);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.grid16{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.wk{border:1px solid var(--line-soft);border-radius:8px;text-align:center;padding:6px 2px;font-size:11px;color:var(--muted)}
+.wk.cur{border-color:var(--gold);background:var(--gold-soft);color:var(--gold);font-weight:700}
+.wk.done{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.dayline{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer;gap:8px}
+.dayline:last-child{border-bottom:0}
+.recipe-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--card)}
+.recipe-card b{font-size:13.5px}
+.recipe-card .ing{font-size:12.5px;color:var(--muted);margin:7px 0}
+.recipe-card .instr{font-size:12.5px;background:rgba(212,175,55,.05);border:1px solid var(--line-soft);border-radius:9px;padding:9px;margin-top:6px}
+.pill-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.pill-tabs button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--muted);font-family:Manrope}
+.pill-tabs button.on{background:var(--gold);color:var(--gold-dark);border-color:var(--gold);font-weight:700}
+.avoid li{font-size:13px;padding:5px 0;color:#d9a08c;list-style:none;border-bottom:1px solid var(--line-soft)}
+.avoid li:last-child{border-bottom:0}
+#chartWrap{overflow-x:auto}
+.muted{color:var(--muted);font-size:12px}
+.formgrid{display:flex;flex-direction:column;gap:8px}
+dialog{border:1px solid var(--line);border-radius:18px;padding:22px;max-width:400px;width:92%;margin:auto;background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.7)}
+.doseTag{font-family:Cinzel;font-weight:700;color:var(--gold)}
+@media(min-width:700px){nav{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--line)}body{padding-bottom:20px}}
+</style>
+</head>
+<body>
+<div id="warnBanner">⚠ Le rétatrutide est un composé de recherche (research use only), sans posologie approuvée. Ce plan — doses et alimentation — est indicatif : un suivi médical est indispensable, y compris pour le SIBO/IMO. Ne remplace pas un avis médical.</div>
+<header>
+  <div><h1>SUIVI RÉTATRUTIDE + SIBO/IMO</h1><div class="sub" id="headSub"></div></div>
+  <button class="btn small" onclick="openSettings()" id="setBtn"></button>
+</header>
+<main id="app"></main>
+<nav id="nav"></nav>
+
+<dialog id="dlgStart">
+  <h2 style="margin-bottom:10px;font-size:15px;color:var(--gold)">Réglages</h2>
+  <p class="muted" style="margin-bottom:6px">Date de la 1ʳᵉ injection (semaine 1). Sert à calculer les paliers de dose, les injections et la courbe de poids.</p>
+  <div class="formgrid">
+    <input type="date" id="inpStart">
+    <button class="btn primary" onclick="saveStart()">Valider</button>
+  </div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+  <p class="muted" style="margin-bottom:8px"><b style="color:var(--gold)">Sauvegarde des données.</b> Les données restent sur cet appareil. Exporte-les régulièrement (et pour les transférer sur un autre téléphone/tablette : exporter ici, importer là-bas).</p>
+  <div class="row">
+    <button class="btn small" onclick="exportAll()">Exporter mes données</button>
+    <button class="btn small" onclick="document.getElementById('impFile').click()">Importer</button>
+    <input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importAll(event)">
+  </div>
+</dialog>
+
+<script>
+/* ================= DONNÉES ================= */
+const CATS = {proteines:"Protéines", feculents:"Féculents", legumes:"Légumes", fruits:"Fruits", laitier:"Laitier", matieres_grasses:"Matières grasses"};
+
+const FOODS = {
+ proteines:[
+  {id:"ailes",nom:"Ailes de poulet (chair + peau, cru)",kcal:191,prot:18},
+  {id:"dinde",nom:"Blanc de dinde cru",kcal:105,prot:24},
+  {id:"cabillaud",nom:"Cabillaud cru",kcal:82,prot:18},
+  {id:"saumon",nom:"Saumon cru",kcal:208,prot:20},
+  {id:"boeuf",nom:"Bœuf maigre cru",kcal:130,prot:21},
+  {id:"crevettes",nom:"Crevettes cuites",kcal:99,prot:24},
+  {id:"oeuf",nom:"Œuf",kcal:155,prot:13},
+  {id:"thon",nom:"Thon au naturel (conserve)",kcal:116,prot:26},
+  {id:"truite",nom:"Truite crue",kcal:119,prot:20},
+  {id:"sardines",nom:"Sardines (conserve, égouttées)",kcal:208,prot:25},
+  {id:"tofu",nom:"Tofu ferme",kcal:144,prot:15}],
+ feculents:[
+  {id:"riz",nom:"Riz blanc cuit",kcal:130,prot:2.7},
+  {id:"pdt",nom:"Pommes de terre cuites",kcal:85,prot:2},
+  {id:"quinoa",nom:"Quinoa cuit",kcal:120,prot:4.4},
+  {id:"avoine",nom:"Flocons avoine sans gluten",kcal:375,prot:13},
+  {id:"painsg",nom:"Pain sans gluten",kcal:260,prot:6},
+  {id:"sarrasin",nom:"Sarrasin cuit",kcal:92,prot:3.4},
+  {id:"millet",nom:"Millet cuit",kcal:119,prot:3.5},
+  {id:"polenta",nom:"Polenta cuite",kcal:85,prot:1.9}],
+ legumes:[
+  {id:"courgette",nom:"Courgette cuite",kcal:20,prot:1.2},
+  {id:"carotte",nom:"Carotte cuite",kcal:35,prot:0.8},
+  {id:"epinards",nom:"Épinards cuits",kcal:25,prot:3},
+  {id:"poivron",nom:"Poivron rouge cuit",kcal:30,prot:1},
+  {id:"haricots",nom:"Haricots verts cuits",kcal:30,prot:1.8},
+  {id:"concombre",nom:"Concombre",kcal:15,prot:0.7},
+  {id:"laitue",nom:"Laitue",kcal:14,prot:1},
+  {id:"panais",nom:"Panais cuit",kcal:75,prot:1.2}],
+ fruits:[
+  {id:"kiwi",nom:"Kiwi",kcal:61,prot:1.1},
+  {id:"orange",nom:"Orange",kcal:47,prot:0.9},
+  {id:"fraises",nom:"Fraises",kcal:32,prot:0.7},
+  {id:"ananas",nom:"Ananas",kcal:50,prot:0.5},
+  {id:"raisin",nom:"Raisin",kcal:69,prot:0.7},
+  {id:"myrtilles",nom:"Myrtilles",kcal:57,prot:0.7},
+  {id:"framboises",nom:"Framboises",kcal:52,prot:1.2},
+  {id:"mandarine",nom:"Mandarine",kcal:53,prot:0.8}],
+ laitier:[
+  {id:"yaourtsl",nom:"Yaourt sans lactose nature",kcal:65,prot:4},
+  {id:"cheddar",nom:"Fromage cheddar (pâte dure)",kcal:400,prot:25},
+  {id:"mozzarella",nom:"Mozzarella",kcal:280,prot:22}],
+ matieres_grasses:[
+  {id:"huile",nom:"Huile d'olive",kcal:884,prot:0}]
+};
+
+const AVOID = ["Oignon, ail, poireau","Légumineuses (lentilles, pois chiches, haricots secs)","Choux en grande quantité","Pommes, poires (fructose élevé)","Produits laitiers avec lactose","Édulcorants polyols (sorbitol, xylitol, mannitol)","Plats frits, sauces grasses lourdes","Boissons gazeuses","Banane, papaye, viande de porc (exclusion personnelle)"];
+
+// Cibles nutritionnelles par mois (cahier des charges)
+const PHASES = [
+ {mois:1,sem:"1-4",kcal:[1300,1400],prot:[90,100],note:"Tolérance initiale : repas petits et fréquents, low FODMAP strict."},
+ {mois:2,sem:"5-8",kcal:[1350,1450],prot:[95,105],note:"Appétit plus réduit : garder la même structure, surveiller la digestion."},
+ {mois:3,sem:"9-12",kcal:[1350,1450],prot:[100,110],note:"Augmenter les féculents +20 g/repas principal si besoin."},
+ {mois:4,sem:"13-16",kcal:[1400,1500],prot:[100,125],note:"Augmenter les protéines +20-30 g/repas principal, priorité à la tolérance."}
+];
+
+// Paliers de dose — titration adaptée du générateur RAL Peptides, PLAFONNÉE À 2 MG
+const DOSES = [
+ {sem:"1",dose:"0.5 mg",lab:"Démarrage",note:"Évaluer la tolérance, dose la plus basse."},
+ {sem:"2-4",dose:"1 mg",lab:"Palier initial",note:"Montée douce, laisser le corps s'adapter."},
+ {sem:"5-8",dose:"2 mg",lab:"Dose plafond",note:"Palier maximal choisi — on ne dépasse pas 2 mg."},
+ {sem:"9-16",dose:"2 mg",lab:"Maintien",note:"Demi-vie longue (~5-6 j) : l'effet continue d'augmenter sans monter la dose. Les paliers 4 et 6 mg du protocole de référence ne sont volontairement pas utilisés."}
+];
+function doseForWeek(w){ if(w===1) return "0.5 mg"; if(w<=4) return "1 mg"; return "2 mg"; }
+
+const MEAL_DEFS = [
+ {nom:"Petit-déjeuner",type:"petit_dej"},
+ {nom:"Collation matin",type:"collation"},
+ {nom:"Déjeuner",type:"repas"},
+ {nom:"Collation après-midi",type:"collation"},
+ {nom:"Dîner",type:"repas"}
+];
+
+// Menus de base (0 = Lundi ... 6 = Dimanche) — sans banane/porc/papaye, ailes de poulet à la place du blanc
+const BASE_MENU = [
+ [[["proteines","oeuf",100],["feculents","painsg",30],["fruits","kiwi",70]],
+  [["laitier","yaourtsl",125],["fruits","fraises",80]],
+  [["proteines","ailes",130],["feculents","riz",170],["legumes","courgette",150],["matieres_grasses","huile",2]],
+  [["fruits","orange",130]],
+  [["proteines","cabillaud",140],["feculents","pdt",180],["legumes","epinards",100],["matieres_grasses","huile",6]]],
+ [[["feculents","avoine",40],["fruits","kiwi",130],["laitier","yaourtsl",100]],
+  [["laitier","cheddar",30],["fruits","raisin",60]],
+  [["proteines","dinde",130],["feculents","quinoa",150],["legumes","poivron",120],["matieres_grasses","huile",8]],
+  [["fruits","kiwi",90]],
+  [["proteines","oeuf",150],["feculents","pdt",180],["legumes","carotte",100],["matieres_grasses","huile",6]]],
+ [[["proteines","oeuf",100],["feculents","painsg",30],["fruits","fraises",80]],
+  [["laitier","yaourtsl",125],["fruits","myrtilles",70]],
+  [["proteines","boeuf",130],["feculents","riz",150],["legumes","haricots",150],["matieres_grasses","huile",8]],
+  [["fruits","orange",130]],
+  [["proteines","saumon",120],["feculents","pdt",150],["legumes","epinards",100],["matieres_grasses","huile",5]]],
+ [[["feculents","avoine",40],["fruits","kiwi",70],["laitier","yaourtsl",100]],
+  [["laitier","cheddar",30],["fruits","ananas",90]],
+  [["proteines","ailes",130],["feculents","quinoa",150],["legumes","courgette",150],["matieres_grasses","huile",2]],
+  [["fruits","raisin",115]],
+  [["proteines","crevettes",150],["feculents","riz",150],["legumes","carotte",100],["matieres_grasses","huile",6]]],
+ [[["proteines","oeuf",100],["feculents","painsg",30],["fruits","orange",130]],
+  [["laitier","yaourtsl",125],["fruits","raisin",60]],
+  [["proteines","dinde",130],["feculents","pdt",180],["legumes","poivron",120],["matieres_grasses","huile",8]],
+  [["fruits","fraises",100]],
+  [["proteines","cabillaud",140],["feculents","riz",150],["legumes","epinards",100],["matieres_grasses","huile",6]]],
+ [[["feculents","avoine",40],["fruits","myrtilles",70],["laitier","yaourtsl",100]],
+  [["laitier","cheddar",30],["fruits","kiwi",70]],
+  [["proteines","boeuf",130],["feculents","quinoa",150],["legumes","haricots",150],["matieres_grasses","huile",8]],
+  [["fruits","ananas",100]],
+  [["proteines","oeuf",150],["feculents","pdt",180],["legumes","carotte",100],["matieres_grasses","huile",6]]],
+ [[["proteines","oeuf",100],["feculents","painsg",30],["fruits","ananas",160]],
+  [["laitier","yaourtsl",125],["fruits","fraises",80]],
+  [["proteines","saumon",120],["feculents","riz",150],["legumes","courgette",150],["matieres_grasses","huile",8]],
+  [["fruits","orange",130]],
+  [["proteines","ailes",120],["feculents","pdt",110],["legumes","epinards",100],["matieres_grasses","huile",2]]]
+];
+
+// Recettes low FODMAP — sans banane, porc, papaye
+const RECETTES = [
+ // ---- Petits-déjeuners
+ {id:"r_oeufs_tartine",type:"petit_dej",nom:"Œufs & tartine, kiwi",items:[["proteines","oeuf",100],["feculents","painsg",30],["fruits","kiwi",70]],instr:"Cuire les œufs au plat ou brouillés dans une poêle antiadhésive. Griller le pain sans gluten. Servir avec le kiwi en tranches."},
+ {id:"r_porridge",type:"petit_dej",nom:"Porridge aux myrtilles",items:[["feculents","avoine",40],["fruits","myrtilles",80],["laitier","yaourtsl",100]],instr:"Cuire les flocons d'avoine avec 150 ml d'eau 3-4 min. Hors du feu, incorporer le yaourt sans lactose. Ajouter les myrtilles."},
+ {id:"r_bol_myrtilles",type:"petit_dej",nom:"Bol yaourt, myrtilles & avoine",items:[["laitier","yaourtsl",125],["fruits","myrtilles",70],["feculents","avoine",30]],instr:"Verser le yaourt dans un bol, ajouter les flocons d'avoine et les myrtilles. Laisser reposer 5 min pour ramollir l'avoine."},
+ {id:"r_brouilles_epinards",type:"petit_dej",nom:"Œufs brouillés aux épinards",items:[["proteines","oeuf",120],["legumes","epinards",80],["feculents","painsg",30]],instr:"Faire tomber les épinards à la poêle 2 min. Ajouter les œufs battus et remuer à feu doux. Servir sur le pain grillé."},
+ {id:"r_pancakes",type:"petit_dej",nom:"Pancakes avoine-yaourt",items:[["feculents","avoine",40],["proteines","oeuf",60],["laitier","yaourtsl",80],["fruits","myrtilles",40]],instr:"Mixer flocons d'avoine, œuf et yaourt. Cuire de petits pancakes 2 min par face. Servir avec les myrtilles."},
+ {id:"r_omelette_cheddar",type:"petit_dej",nom:"Omelette au cheddar & pain grillé",items:[["proteines","oeuf",100],["laitier","cheddar",20],["feculents","painsg",30]],instr:"Battre les œufs, cuire l'omelette à feu doux, ajouter le cheddar râpé en fin de cuisson. Servir avec le pain grillé."},
+ {id:"r_porridge_framboises",type:"petit_dej",nom:"Porridge aux framboises",items:[["feculents","avoine",40],["fruits","framboises",60],["laitier","yaourtsl",100]],instr:"Cuire l'avoine avec 150 ml d'eau. Incorporer le yaourt hors du feu, garnir de framboises légèrement écrasées."},
+ {id:"r_toast_oeuf",type:"petit_dej",nom:"Toast œuf-épinards",items:[["feculents","painsg",40],["proteines","oeuf",100],["legumes","epinards",50]],instr:"Griller le pain. Cuire l'œuf au plat, poêler rapidement les épinards. Monter le toast : épinards puis œuf."},
+ {id:"r_granola",type:"petit_dej",nom:"Bol « granola » fraises-myrtilles",items:[["laitier","yaourtsl",125],["feculents","avoine",25],["fruits","fraises",60],["fruits","myrtilles",40]],instr:"Toaster les flocons d'avoine à sec 3 min à la poêle. Verser sur le yaourt avec les fruits."},
+ {id:"r_millet_kiwi",type:"petit_dej",nom:"Bol de millet, kiwi & yaourt",items:[["feculents","millet",100],["fruits","kiwi",70],["laitier","yaourtsl",100]],instr:"Réchauffer le millet cuit avec un peu d'eau. Ajouter le yaourt et le kiwi en dés."},
+ // ---- Collations
+ {id:"c_yaourt_fraises",type:"collation",nom:"Yaourt & fraises",items:[["laitier","yaourtsl",125],["fruits","fraises",80]],instr:"Couper les fraises et les mélanger au yaourt sans lactose."},
+ {id:"c_cheddar_raisin",type:"collation",nom:"Cheddar & raisin",items:[["laitier","cheddar",30],["fruits","raisin",60]],instr:"Couper le cheddar en dés, servir avec le raisin."},
+ {id:"c_orange",type:"collation",nom:"Orange fraîche",items:[["fruits","orange",130]],instr:"Peler l'orange et déguster en quartiers."},
+ {id:"c_yaourt_kiwi",type:"collation",nom:"Yaourt & kiwi",items:[["laitier","yaourtsl",125],["fruits","kiwi",70]],instr:"Couper le kiwi en dés et l'ajouter au yaourt."},
+ {id:"c_ananas_cheddar",type:"collation",nom:"Ananas & cheddar",items:[["fruits","ananas",90],["laitier","cheddar",25]],instr:"Ananas frais en morceaux, cheddar en copeaux."},
+ {id:"c_raisin_myrtilles",type:"collation",nom:"Raisin & myrtilles",items:[["fruits","raisin",80],["fruits","myrtilles",60]],instr:"Servir frais, éventuellement avec quelques feuilles de menthe."},
+ {id:"c_mandarine_cheddar",type:"collation",nom:"Mandarine & cheddar",items:[["fruits","mandarine",100],["laitier","cheddar",25]],instr:"Quartiers de mandarine et fins copeaux de cheddar."},
+ {id:"c_framboises_yaourt",type:"collation",nom:"Framboises & yaourt",items:[["laitier","yaourtsl",125],["fruits","framboises",60]],instr:"Écraser légèrement les framboises dans le yaourt."},
+ {id:"c_oeuf_concombre",type:"collation",nom:"Œuf dur & concombre",items:[["proteines","oeuf",50],["legumes","concombre",100]],instr:"Œuf dur (9 min), bâtonnets de concombre, une pincée de sel."},
+ {id:"c_mozza_raisin",type:"collation",nom:"Mozzarella & raisin",items:[["laitier","mozzarella",40],["fruits","raisin",60]],instr:"Billes de mozzarella et grains de raisin, filet de jus de citron."},
+ {id:"c_ananas_myrtilles",type:"collation",nom:"Ananas & myrtilles",items:[["fruits","ananas",80],["fruits","myrtilles",60]],instr:"Ananas en dés et myrtilles, servir bien frais."},
+ // ---- Repas principaux
+ {id:"m_ailes_riz",type:"repas",nom:"Ailes de poulet rôties, riz & courgettes",items:[["proteines","ailes",130],["feculents","riz",150],["legumes","courgette",150],["matieres_grasses","huile",2]],instr:"Rôtir les ailes au four 35-40 min à 200 °C (la peau apporte le gras : très peu d'huile ajoutée). Cuire le riz, poêler les courgettes avec basilic et thym."},
+ {id:"m_cabillaud_vapeur",type:"repas",nom:"Cabillaud vapeur, pommes de terre & épinards",items:[["proteines","cabillaud",140],["feculents","pdt",180],["legumes","epinards",100],["matieres_grasses","huile",6]],instr:"Cuire le cabillaud à la vapeur 8-10 min avec du citron. Pommes de terre à l'eau. Épinards tombés à la poêle avec l'huile d'olive."},
+ {id:"m_dinde_quinoa",type:"repas",nom:"Dinde poêlée, quinoa & poivrons",items:[["proteines","dinde",130],["feculents","quinoa",150],["legumes","poivron",120],["matieres_grasses","huile",8]],instr:"Poêler la dinde en aiguillettes. Cuire le quinoa 12 min. Faire revenir les poivrons dans l'huile avec un peu de paprika doux."},
+ {id:"m_boeuf_riz",type:"repas",nom:"Bœuf sauté, riz & haricots verts",items:[["proteines","boeuf",130],["feculents","riz",150],["legumes","haricots",150],["matieres_grasses","huile",8]],instr:"Saisir le bœuf en lamelles à feu vif 2-3 min. Riz et haricots verts vapeur, filet d'huile d'olive au moment de servir."},
+ {id:"m_saumon_four",type:"repas",nom:"Saumon au four, pommes de terre & épinards",items:[["proteines","saumon",120],["feculents","pdt",150],["legumes","epinards",100],["matieres_grasses","huile",5]],instr:"Saumon au four 12-15 min à 180 °C avec citron et aneth. Pommes de terre vapeur, épinards poêlés."},
+ {id:"m_wok_crevettes",type:"repas",nom:"Wok de crevettes, riz & carottes",items:[["proteines","crevettes",150],["feculents","riz",150],["legumes","carotte",100],["matieres_grasses","huile",6]],instr:"Sauter les crevettes au wok avec du gingembre frais. Ajouter les carottes en julienne. Servir sur le riz."},
+ {id:"m_omelette",type:"repas",nom:"Omelette complète, pommes de terre & carottes",items:[["proteines","oeuf",150],["feculents","pdt",180],["legumes","carotte",100],["matieres_grasses","huile",6]],instr:"Omelette aux herbes (ciboulette, partie verte uniquement). Pommes de terre rissolées avec un peu d'huile, carottes vapeur."},
+ {id:"m_ailes_quinoa",type:"repas",nom:"Ailes de poulet grillées, quinoa & courgettes",items:[["proteines","ailes",130],["feculents","quinoa",150],["legumes","courgette",150],["matieres_grasses","huile",2]],instr:"Griller les ailes au four position gril 25-30 min en retournant à mi-cuisson, avec herbes de Provence. Quinoa nature, courgettes rôties."},
+ {id:"m_papillote",type:"repas",nom:"Papillote de cabillaud, riz & poivrons",items:[["proteines","cabillaud",140],["feculents","riz",150],["legumes","poivron",120],["matieres_grasses","huile",6]],instr:"Cabillaud en papillote avec poivrons, citron et huile, 15 min à 200 °C. Servir avec le riz."},
+ {id:"m_salade_quinoa",type:"repas",nom:"Salade tiède quinoa-crevettes",items:[["proteines","crevettes",130],["feculents","quinoa",150],["legumes","concombre",100],["matieres_grasses","huile",8]],instr:"Mélanger le quinoa tiède, les crevettes, le concombre en dés. Assaisonner d'huile d'olive et de jus de citron."},
+ {id:"m_ailes_polenta",type:"repas",nom:"Ailes de poulet, polenta crémeuse & haricots verts",items:[["proteines","ailes",120],["feculents","polenta",200],["legumes","haricots",150],["matieres_grasses","huile",3]],instr:"Rôtir les ailes 35 min à 200 °C. Cuire la polenta en remuant, détendre avec un peu d'eau chaude. Haricots verts vapeur."},
+ {id:"m_truite_millet",type:"repas",nom:"Truite au four, millet & courgettes",items:[["proteines","truite",130],["feculents","millet",150],["legumes","courgette",150],["matieres_grasses","huile",6]],instr:"Truite au four 15 min à 180 °C avec citron. Millet cuit comme un pilaf, courgettes poêlées."},
+ {id:"m_salade_thon",type:"repas",nom:"Salade de thon, riz & concombre",items:[["proteines","thon",100],["feculents","riz",150],["legumes","concombre",100],["matieres_grasses","huile",8]],instr:"Mélanger riz froid, thon émietté, concombre en dés. Assaisonner d'huile d'olive, citron et ciboulette (partie verte)."},
+ {id:"m_tofu_sarrasin",type:"repas",nom:"Tofu sauté, sarrasin & poivrons",items:[["proteines","tofu",150],["feculents","sarrasin",150],["legumes","poivron",120],["matieres_grasses","huile",6]],instr:"Saisir le tofu en cubes jusqu'à coloration. Sarrasin cuit 10 min. Poivrons sautés au gingembre et sauce soja sans gluten (tamari)."},
+ {id:"m_sardines_pdt",type:"repas",nom:"Sardines grillées, pommes de terre & laitue",items:[["proteines","sardines",90],["feculents","pdt",200],["legumes","laitue",50],["matieres_grasses","huile",4]],instr:"Griller les sardines 2-3 min par face. Pommes de terre vapeur, laitue croquante avec huile-citron."},
+ {id:"m_boeuf_polenta",type:"repas",nom:"Bœuf grillé, polenta & épinards",items:[["proteines","boeuf",130],["feculents","polenta",180],["legumes","epinards",100],["matieres_grasses","huile",6]],instr:"Griller le bœuf 2-3 min par face selon l'épaisseur. Polenta crémeuse, épinards tombés à l'huile d'olive."},
+ {id:"m_crevettes_citron",type:"repas",nom:"Crevettes au citron, quinoa & haricots verts",items:[["proteines","crevettes",140],["feculents","quinoa",150],["legumes","haricots",120],["matieres_grasses","huile",6]],instr:"Poêler les crevettes avec zeste et jus de citron. Quinoa nature, haricots verts vapeur."},
+ {id:"m_cabillaud_croute",type:"repas",nom:"Cabillaud en croûte d'avoine, pommes de terre & carottes",items:[["proteines","cabillaud",140],["feculents","avoine",15],["feculents","pdt",150],["legumes","carotte",100],["matieres_grasses","huile",5]],instr:"Paner le cabillaud avec flocons d'avoine mixés et herbes, cuire au four 15 min à 200 °C. Pommes de terre et carottes vapeur."},
+ {id:"m_dinde_panais",type:"repas",nom:"Dinde rôtie, panais & pommes de terre",items:[["proteines","dinde",130],["legumes","panais",120],["feculents","pdt",120],["matieres_grasses","huile",6]],instr:"Rôtir dinde, panais et pommes de terre ensemble au four 30 min à 190 °C avec thym et huile d'olive."},
+ {id:"m_saumon_fraicheur",type:"repas",nom:"Saumon grillé, riz & fraîcheur concombre-laitue",items:[["proteines","saumon",110],["feculents","riz",150],["legumes","concombre",80],["legumes","laitue",40],["matieres_grasses","huile",4]],instr:"Griller le saumon côté peau 5-6 min. Riz nature. Salade concombre-laitue, vinaigrette citron-huile d'olive."},
+ {id:"m_omelette_mozza",type:"repas",nom:"Omelette mozzarella-épinards & pain grillé",items:[["proteines","oeuf",120],["laitier","mozzarella",30],["legumes","epinards",80],["feculents","painsg",30]],instr:"Faire tomber les épinards, verser les œufs battus, ajouter la mozzarella. Plier l'omelette, servir avec le pain grillé."}
+];
+
+/* ================= ÉTAT & CALCULS ================= */
+const LS = "reta_sibo_v3";
+const LS_OLD = "reta_sibo_v2";
+function migrateItem(it){
+  if(it[1]==="poulet") it[1]="ailes";
+  if(it[1]==="banane"){ it[0]="fruits"; it[1]="kiwi"; }
+  return it;
+}
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s) return s; }catch(e){}
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_OLD));
+    if(o){
+      Object.values(o.menus||{}).forEach(day=>day.forEach(m=>{ m.items=(m.items||[]).map(migrateItem); }));
+      (o.customRecipes||[]).forEach(r=>{ r.items=(r.items||[]).map(migrateItem); });
+      localStorage.setItem(LS, JSON.stringify(o));
+      return o;
+    }
+  }catch(e){}
+  return {start:null, customFoods:{}, customRecipes:[], menus:{}, weights:{}, injections:{}};
+}
+let state = load();
+function save(){ localStorage.setItem(LS, JSON.stringify(state)); }
+
+function allFoods(cat){ return (FOODS[cat]||[]).concat(state.customFoods[cat]||[]); }
+function findFood(cat,id){ return allFoods(cat).find(f=>f.id===id); }
+function allRecipes(type){ return RECETTES.concat(state.customRecipes||[]).filter(r=>!type||r.type===type); }
+function findRecipe(id){ return RECETTES.concat(state.customRecipes||[]).find(r=>r.id===id); }
+
+function kcalOf(it){ const f=findFood(it[0],it[1]); return f ? f.kcal*it[2]/100 : 0; }
+function protOf(it){ const f=findFood(it[0],it[1]); return f ? f.prot*it[2]/100 : 0; }
+function mealTotals(items){ return {k:items.reduce((s,i)=>s+kcalOf(i),0), p:items.reduce((s,i)=>s+protOf(i),0)}; }
+function dayTotals(meals){ let k=0,p=0; meals.forEach(m=>{const t=mealTotals(m.items);k+=t.k;p+=t.p;}); return {k,p}; }
+// Substitution iso-calorique : nouveau_poids = (ancien_kcal / nouvelle_densite) * 100
+function swapWeight(oldKcal, newFood){ return Math.max(1, Math.round(oldKcal / newFood.kcal * 100)); }
+
+function iso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseISO(s){ const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); }
+function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return iso(d); }
+function fmtDate(s){ return parseISO(s).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}); }
+function weekdayIdx(s){ return (parseISO(s).getDay()+6)%7; } // 0 = lundi
+function weekNum(dateISO){
+  if(!state.start) return null;
+  const diff = Math.round((parseISO(dateISO) - parseISO(state.start)) / 864e5);
+  return Math.floor(diff/7)+1;
+}
+function phaseOf(dateISO){
+  const w = weekNum(dateISO);
+  if(w===null || w<1 || w>16) return null;
+  return PHASES[Math.min(3, Math.ceil(w/4)-1)];
+}
+function baseDayMenu(dateISO){
+  const wd = weekdayIdx(dateISO);
+  return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,items:BASE_MENU[wd][i].map(it=>it.slice())}));
+}
+function menuFor(dateISO){
+  if(state.menus[dateISO]) return state.menus[dateISO];
+  return baseDayMenu(dateISO);
+}
+function ensureOverride(dateISO){
+  if(!state.menus[dateISO]) state.menus[dateISO] = baseDayMenu(dateISO);
+  return state.menus[dateISO];
+}
+function rangeBadge(val,[lo,hi],unit){
+  if(val < lo) return `<span class="badge warn">${Math.round(val)} ${unit} · sous cible (${lo}-${hi})</span>`;
+  if(val > hi) return `<span class="badge bad">${Math.round(val)} ${unit} · au-dessus (${lo}-${hi})</span>`;
+  return `<span class="badge ok">${Math.round(val)} ${unit} ✓ (${lo}-${hi})</span>`;
+}
+//<DOM>
+/* ================= ICÔNES SVG ================= */
+const _ic = p => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC = {
+ day:_ic('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none"/>'),
+ week:_ic('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4M9 10v11M15 10v11"/>'),
+ proto:_ic('<path d="M9 3h6M12 3v3"/><rect x="6" y="6" width="12" height="15" rx="2.5"/><path d="M9.5 13.5l2 2 3.5-4"/>'),
+ recipes:_ic('<path d="M12 5.5C10.8 4 9 3.2 7 3.2c-1.5 0-2.9.4-4 1.1V19c1.1-.7 2.5-1.1 4-1.1 2 0 3.8.8 5 2.1 1.2-1.3 3-2.1 5-2.1 1.5 0 2.9.4 4 1.1V4.3c-1.1-.7-2.5-1.1-4-1.1-2 0-3.8.8-5 2.1z"/><path d="M12 5.5V20"/>'),
+ weight:_ic('<path d="M3 20h18"/><path d="M4 16l4.5-5 3.5 3 5.5-7 2.5 3"/>'),
+ foods:_ic('<path d="M20 4c-8 0-14 4-14 11 0 2.8 2.2 5 5 5 7 0 11-6 11-14 0-.7 0-1.3-.2-2H20z"/><path d="M4 20C7 14 11 10 16 7"/>'),
+ tools:_ic('<path d="M4 7h8M16 7h4M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="14" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>'),
+ gear:_ic('<circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.5h4l.4-2.5a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.06-.4.1-.8.1-1.2z"/>'),
+ syringe:_ic('<path d="M19 2l3 3M20.5 3.5L14 10M17 7l-8.5 8.5a2 2 0 0 1-1.4.6H5v-2.1a2 2 0 0 1 .6-1.4L14 4.1M5 19l-3 3M8 12l2 2M11 9l2 2"/>'),
+ export:_ic('<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>'),
+ chef:_ic('<path d="M8.5 8A3.5 3.5 0 0 1 12 4.5 3.5 3.5 0 0 1 15.5 8 3 3 0 0 1 18 11c0 1.2-.7 2.2-1.7 2.7V19a1.5 1.5 0 0 1-1.5 1.5H9.2A1.5 1.5 0 0 1 7.7 19v-5.3A3 3 0 0 1 6 11a3 3 0 0 1 2.5-3z"/><path d="M7.7 17h8.6"/>'),
+ alert:_ic('<path d="M12 3L2.5 20h19L12 3z"/><path d="M12 10v4M12 17.2v.3"/>'),
+ calc:_ic('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7.5h7M8.5 12h.1M12 12h.1M15.5 12h.1M8.5 15.5h.1M12 15.5h.1M15.5 15.5h.1M8.5 15.5"/>'),
+ body:_ic('<circle cx="12" cy="5.5" r="2.6"/><path d="M6.5 21v-3.5a5.5 5.5 0 0 1 11 0V21"/>'),
+ journal:_ic('<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17l-1 4z"/><path d="M13.5 8.5l3 3"/>'),
+ target:_ic('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>')
+};
+
+/* ================= UI ================= */
+const $ = s=>document.querySelector(s);
+let cur = {tab:"jour", date: iso(new Date()), recFilter:"repas"};
+
+const TABS = [
+ {id:"jour",ic:IC.day,lab:"Jour"},
+ {id:"semaine",ic:IC.week,lab:"Semaine"},
+ {id:"protocole",ic:IC.proto,lab:"Protocole"},
+ {id:"recettes",ic:IC.recipes,lab:"Recettes"},
+ {id:"outils",ic:IC.tools,lab:"Outils"},
+ {id:"poids",ic:IC.weight,lab:"Poids"},
+ {id:"aliments",ic:IC.foods,lab:"Aliments"}
+];
+function renderNav(){
+  $("#nav").innerHTML = TABS.map(t=>`<button class="${cur.tab===t.id?'active':''}" onclick="go('${t.id}')">${t.ic}${t.lab}</button>`).join("");
+}
+function go(tab){ cur.tab=tab; render(); }
+function render(){
+  renderNav(); renderHead();
+  ({jour:renderDay, semaine:renderWeek, protocole:renderProto, recettes:renderRecettes, outils:renderOutils, poids:renderPoids, aliments:renderAliments})[cur.tab]();
+  window.scrollTo(0,0);
+}
+function renderHead(){
+  const w = weekNum(cur.date), ph = phaseOf(cur.date);
+  $("#headSub").textContent = state.start
+    ? (ph ? `Semaine ${w}/16 · Mois ${ph.mois} · dose ${doseForWeek(w)}/sem (plafond 2 mg)` : (w<1?`Protocole débute le ${fmtDate(state.start)}`:`Protocole 16 semaines terminé`))
+    : "Date de début non définie";
+  $("#setBtn").innerHTML = IC.gear+" Réglages";
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- Vue Jour ---------- */
+function renderDay(){
+  const meals = menuFor(cur.date);
+  const tot = dayTotals(meals);
+  const ph = phaseOf(cur.date);
+  const isCustom = !!state.menus[cur.date];
+  let html = `
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <button class="btn small" onclick="chDay(-1)">◀</button>
+      <div style="text-align:center"><b style="font-size:14px;text-transform:capitalize">${fmtDate(cur.date)}</b><br>
+      <span class="row" style="justify-content:center;margin-top:4px"><input type="date" value="${cur.date}" onchange="cur.date=this.value;render()">
+      ${cur.date!==iso(new Date())?`<button class="btn small" onclick="cur.date=iso(new Date());render()">Aujourd'hui</button>`:""}</span></div>
+      <button class="btn small" onclick="chDay(1)">▶</button>
+    </div>
+  </div>
+  <div class="totbar">
+    <div><div class="muted">Calories du jour</div><div class="big">${Math.round(tot.k)} kcal</div>${ph?rangeBadge(tot.k,ph.kcal,"kcal"):""}</div>
+    <div><div class="muted">Protéines du jour</div><div class="big">${Math.round(tot.p)} g</div>${ph?rangeBadge(tot.p,ph.prot,"g"):""}</div>
+  </div>`;
+  if(!ph) html += `<div class="card muted">Cette date est hors des 16 semaines du protocole — pas de cible définie.</div>`;
+
+  meals.forEach((m,mi)=>{
+    const t = mealTotals(m.items);
+    const recs = allRecipes(m.type);
+    const rec = m.recipeId ? findRecipe(m.recipeId) : null;
+    html += `<div class="meal">
+      <div class="meal-head">
+        <div><b>${m.nom}</b>${rec?` <span class="badge gold">${esc(rec.nom)}</span>`:""}<div class="tot">${Math.round(t.k)} kcal · ${t.p.toFixed(1)} g prot.</div></div>
+        <select onchange="applyRecipe(${mi},this.value)">
+          <option value="">Changer la recette…</option>
+          <option value="__base">Menu de base du jour</option>
+          ${recs.map(r=>`<option value="${r.id}">${esc(r.nom)} (${Math.round(mealTotals(r.items).k)} kcal)</option>`).join("")}
+        </select>
+      </div>`;
+    m.items.forEach((it,ii)=>{
+      const foods = allFoods(it[0]);
+      html += `<div class="item">
+        <select onchange="swapFood(${mi},${ii},this.value)">
+          ${foods.map(fd=>`<option value="${fd.id}" ${fd.id===it[1]?"selected":""}>${esc(fd.nom)}</option>`).join("")}
+        </select>
+        <input type="number" min="1" value="${it[2]}" onchange="setG(${mi},${ii},this.value)"> g
+        <span class="kp">${Math.round(kcalOf(it))} kcal · ${protOf(it).toFixed(1)} g</span>
+        <button class="xbtn" title="Retirer" onclick="delItem(${mi},${ii})">✕</button>
+      </div>`;
+    });
+    html += `<div class="item" style="background:var(--card2)">
+      <select id="addCat${mi}">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+      <button class="btn small" onclick="addItem(${mi})">+ Ajouter un aliment</button>
+    </div>`;
+    if(rec) html += `<div class="recipe-instr">${IC.chef} <b>Préparation :</b> ${esc(rec.instr)}</div>`;
+    html += `</div>`;
+  });
+  const jr = (state.journal||{})[cur.date]||{};
+  const sc = (id,val)=>`<label class="muted" style="display:flex;flex-direction:column;gap:3px;font-size:11px">${id==='jr_dig'?'Digestion':id==='jr_ener'?'Énergie':'Faim'}
+    <select id="${id}"><option value="">—</option>${[1,2,3,4,5].map(n=>`<option value="${n}" ${val==n?"selected":""}>${n}/5</option>`).join("")}</select></label>`;
+  html += `<div class="card"><h2>${IC.journal} Journal du jour</h2>
+    <div class="row" style="margin-bottom:8px">${sc('jr_dig',jr.dig)}${sc('jr_ener',jr.ener)}${sc('jr_faim',jr.faim)}</div>
+    <textarea id="jr_note" placeholder="Symptômes, ballonnements, nausées, sommeil, hydratation…">${esc(jr.note||"")}</textarea>
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <button class="btn small primary" onclick="saveJournal()">Enregistrer le journal</button>
+      <span class="muted">1 = mauvais · 5 = excellent</span>
+    </div></div>`;
+  html += `<div class="row" style="justify-content:space-between;margin-bottom:20px">
+    ${isCustom?`<button class="btn danger" onclick="resetDay()">↺ Réinitialiser ce jour (menu de base)</button>`:`<span class="muted">Menu de base — toute modification est enregistrée pour ce jour.</span>`}
+  </div>`;
+  $("#app").innerHTML = html;
+}
+function saveJournal(){
+  state.journal = state.journal||{};
+  state.journal[cur.date] = {dig:$("#jr_dig").value, ener:$("#jr_ener").value, faim:$("#jr_faim").value, note:$("#jr_note").value.trim()};
+  save(); render();
+}
+function chDay(n){ cur.date = addDays(cur.date,n); render(); }
+function swapFood(mi,ii,newId){
+  const meals = ensureOverride(cur.date);
+  const it = meals[mi].items[ii];
+  const oldK = kcalOf(it);
+  const nf = findFood(it[0], newId);
+  it[1] = newId;
+  it[2] = swapWeight(oldK, nf); // conserve les kcal du repas
+  save(); render();
+}
+function setG(mi,ii,v){
+  const meals = ensureOverride(cur.date);
+  meals[mi].items[ii][2] = Math.max(1, Number(v)||1);
+  save(); render();
+}
+function delItem(mi,ii){
+  const meals = ensureOverride(cur.date);
+  meals[mi].items.splice(ii,1);
+  save(); render();
+}
+function addItem(mi){
+  const cat = $("#addCat"+mi).value;
+  const meals = ensureOverride(cur.date);
+  const f = allFoods(cat)[0];
+  if(!f){ alert("Aucun aliment dans cette catégorie."); return; }
+  meals[mi].items.push([cat, f.id, 100]);
+  save(); render();
+}
+function applyRecipe(mi,val){
+  if(!val) return;
+  const meals = ensureOverride(cur.date);
+  if(val==="__base"){
+    const base = baseDayMenu(cur.date);
+    meals[mi] = base[mi];
+  } else {
+    const r = findRecipe(val);
+    meals[mi].recipeId = r.id;
+    meals[mi].items = r.items.map(it=>it.slice());
+  }
+  save(); render();
+}
+function resetDay(){ delete state.menus[cur.date]; save(); render(); }
+
+/* ---------- Vue Semaine ---------- */
+function weekStart(dateISO){ return addDays(dateISO, -weekdayIdx(dateISO)); }
+function renderWeek(){
+  const start = weekStart(cur.date);
+  let html = `<div class="card"><div class="row" style="justify-content:space-between">
+    <button class="btn small" onclick="cur.date=addDays(cur.date,-7);render()">◀ Précédente</button>
+    <b class="serif" style="font-size:13px">Semaine du ${parseISO(start).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</b>
+    <button class="btn small" onclick="cur.date=addDays(cur.date,7);render()">Suivante ▶</button>
+  </div></div><div class="card">`;
+  let wk=0,wp=0;
+  for(let i=0;i<7;i++){
+    const d = addDays(start,i);
+    const t = dayTotals(menuFor(d));
+    wk+=t.k; wp+=t.p;
+    const ph = phaseOf(d);
+    let badge = "";
+    if(ph){
+      const inK = t.k>=ph.kcal[0]&&t.k<=ph.kcal[1], inP = t.p>=ph.prot[0]&&t.p<=ph.prot[1];
+      badge = inK&&inP ? `<span class="badge ok">✓</span>` : `<span class="badge warn">hors cible</span>`;
+    }
+    html += `<div class="dayline" onclick="cur.date='${d}';go('jour')">
+      <div><b style="text-transform:capitalize">${parseISO(d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</b>
+      ${state.menus[d]?'<span class="badge gold">modifié</span>':''}
+      ${(state.journal||{})[d]?'<span class="badge gold" title="Journal rempli">📝</span>':''}</div>
+      <div class="muted">${Math.round(t.k)} kcal · ${Math.round(t.p)} g prot.</div>${badge}
+    </div>`;
+  }
+  html += `</div><div class="card"><b>Moyenne : ${Math.round(wk/7)} kcal/j · ${Math.round(wp/7)} g prot./j</b></div>`;
+  if(cur.showShop){
+    const agg = {};
+    for(let i=0;i<7;i++) menuFor(addDays(start,i)).forEach(m=>m.items.forEach(it=>{
+      const key=it[0]+"|"+it[1]; agg[key]=(agg[key]||0)+it[2];
+    }));
+    let list = "";
+    Object.entries(CATS).forEach(([cat,label])=>{
+      const rows = Object.entries(agg).filter(([k])=>k.startsWith(cat+"|"));
+      if(!rows.length) return;
+      list += `<h3 style="color:var(--gold);font-size:12px;margin:10px 0 4px">${label}</h3>`+
+        rows.map(([k,g])=>{const f=findFood(cat,k.split("|")[1]);return f?`<div class="dayline" style="cursor:default;padding:5px 4px"><span>${esc(f.nom)}</span><b>${Math.round(g)} g</b></div>`:"";}).join("");
+    });
+    html += `<div class="card"><h2>${IC.foods} Liste de courses de la semaine</h2>${list}
+      <div class="row" style="margin-top:10px">
+        <button class="btn small" onclick="copyShop('${start}')">Copier la liste</button>
+        <button class="btn small" onclick="cur.showShop=false;render()">Fermer</button>
+      </div></div>`;
+  }
+  html += `<div class="row">
+    <button class="btn" onclick="cur.showShop=!cur.showShop;render()">${IC.foods} Liste de courses</button>
+    <button class="btn" onclick="exportWeekCSV('${start}')">${IC.export} Menus de la semaine (CSV)</button>
+  </div>`;
+  $("#app").innerHTML = html;
+}
+function copyShop(start){
+  const agg = {};
+  for(let i=0;i<7;i++) menuFor(addDays(start,i)).forEach(m=>m.items.forEach(it=>{
+    const key=it[0]+"|"+it[1]; agg[key]=(agg[key]||0)+it[2];
+  }));
+  let txt = "Liste de courses — semaine du "+parseISO(start).toLocaleDateString("fr-FR")+"\n";
+  Object.entries(CATS).forEach(([cat,label])=>{
+    const rows = Object.entries(agg).filter(([k])=>k.startsWith(cat+"|"));
+    if(!rows.length) return;
+    txt += "\n"+label.toUpperCase()+"\n"+rows.map(([k,g])=>{const f=findFood(cat,k.split("|")[1]);return f?"- "+f.nom+" : "+Math.round(g)+" g":"";}).join("\n")+"\n";
+  });
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>alert("Liste copiée !")).catch(()=>prompt("Copie manuelle :",txt));
+}
+
+/* ---------- Vue Protocole + injections ---------- */
+function renderProto(){
+  const curW = state.start ? weekNum(iso(new Date())) : null;
+  let html = `<div class="card"><h2>${IC.syringe} Paliers de dose — plafond 2 mg</h2>
+  <table><tr><th>Sem.</th><th>Dose</th><th>Phase</th></tr>
+  ${DOSES.map(d=>{
+    const [a,b] = d.sem.includes("-") ? d.sem.split("-").map(Number) : [Number(d.sem),Number(d.sem)];
+    const active = curW && curW>=a && curW<=b;
+    return `<tr ${active?'style="background:var(--gold-soft)"':''}><td>${d.sem}</td><td class="doseTag">${d.dose}</td><td>${d.lab}${active?' <span class="badge gold">en cours</span>':''}</td></tr>`;
+  }).join("")}
+  </table>
+  <p class="muted" style="margin-top:10px">${DOSES.map(d=>`<b>S${d.sem} :</b> ${d.note}`).join("<br>")}</p>
+  <p class="muted" style="margin-top:8px">Titration adaptée du protocole de référence RAL Peptides (0.5 → 1 → 2 mg), volontairement plafonnée à 2 mg sur les 16 semaines. Injection sous-cutanée 1×/semaine, le soir (meilleure tolérance). Demi-vie ~5-6 jours : état d'équilibre après ~4-5 semaines.</p></div>`;
+
+  html += `<div class="card"><h2>${IC.foods} Cibles nutritionnelles par mois</h2>
+  <table><tr><th>Mois</th><th>Sem.</th><th>kcal/j</th><th>Prot./j</th></tr>
+  ${PHASES.map(p=>`<tr ${curW&&Math.ceil(curW/4)===p.mois&&curW>=1&&curW<=16?'style="background:var(--gold-soft)"':''}>
+    <td><b>${p.mois}</b></td><td>${p.sem}</td><td>${p.kcal[0]}-${p.kcal[1]}</td><td>${p.prot[0]}-${p.prot[1]} g</td></tr>`).join("")}
+  </table>
+  <p class="muted" style="margin-top:8px">${PHASES.map(p=>`<b>Mois ${p.mois} :</b> ${p.note}`).join("<br>")}</p></div>`;
+
+  html += `<div class="card"><h2>${IC.week} Progression</h2><div class="grid16">`;
+  for(let w=1;w<=16;w++){
+    const cls = curW===w?"cur":(curW&&w<curW?"done":"");
+    html += `<div class="wk ${cls}" title="Semaine ${w} · ${doseForWeek(w)}">S${w}</div>`;
+  }
+  html += `</div>${curW?`<p class="muted" style="margin-top:8px">${curW>=1&&curW<=16?`Semaine actuelle : ${curW} — dose ${doseForWeek(curW)}`:curW<1?"Le protocole n'a pas encore commencé.":"Protocole terminé."}</p>`:""}</div>`;
+
+  html += `<div class="card"><h2>${IC.syringe} Suivi des injections hebdomadaires</h2>`;
+  if(!state.start){ html += `<p class="muted">Définis la date de début dans Réglages.</p>`; }
+  else{
+    html += `<table><tr><th></th><th>Sem.</th><th>Date</th><th>Dose</th><th>Site</th></tr>`;
+    const sites = (state.injSites||{});
+    for(let w=1;w<=16;w++){
+      const d = addDays(state.start,(w-1)*7);
+      const done = !!state.injections[w];
+      const sug = SITES[(w-1)%SITES.length];
+      html += `<tr style="${done?'opacity:.5':''}">
+        <td><input type="checkbox" ${done?"checked":""} onchange="toggleInj(${w},this.checked)"></td>
+        <td>S${w}</td><td>${parseISO(d).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</td>
+        <td><span class="doseTag">${doseForWeek(w)}</span>${curW===w?' <span class="badge gold">cette semaine</span>':''}</td>
+        <td><select onchange="setInjSite(${w},this.value)" style="font-size:11px;padding:4px 5px">
+          <option value="">${esc(sug)} (suggéré)</option>
+          ${SITES.map(s=>`<option value="${s}" ${sites[w]===s?"selected":""}>${s}</option>`).join("")}
+        </select></td></tr>`;
+    }
+    html += `</table><p class="muted" style="margin-top:8px">Alterne les sites à chaque injection (rotation suggérée automatiquement) pour éviter irritations et lipodystrophies. Détails dans l'onglet Outils → Zones d'injection.</p>`;
+  }
+  html += `</div>
+  <div class="card"><h2>${IC.alert} Signes à surveiller</h2>
+  <p class="muted" style="line-height:1.6">Positifs : satiété naturelle, énergie stable, digestion correcte, perte de poids progressive.<br>
+  À ajuster (en parler au médecin) : fatigue importante, vertiges ou maux de tête, crampes musculaires, absence totale d'appétit, vomissements répétés, douleurs abdominales intenses.<br>
+  Hydratation et électrolytes (sodium, potassium, magnésium) recommandés. Perte &gt; 1 %/semaine = trop rapide : augmenter les calories plutôt que la dose.</p></div>`;
+  $("#app").innerHTML = html;
+}
+function toggleInj(w,v){ if(v) state.injections[w]=true; else delete state.injections[w]; save(); render(); }
+const SITES = ["Abdomen G","Abdomen D","Cuisse G","Cuisse D","Flanc G","Flanc D","Bras G","Bras D"];
+function setInjSite(w,v){ state.injSites=state.injSites||{}; if(v) state.injSites[w]=v; else delete state.injSites[w]; save(); render(); }
+
+/* ---------- Vue Outils (adaptés de RAL Peptides) ---------- */
+function tv(){ state.tools = state.tools||{}; return state.tools; }
+function setTool(k,v){ tv()[k] = (v===""||v===null) ? null : Number(v); save(); render(); }
+function protocolTotalMg(){ let t=0; for(let w=1;w<=16;w++) t+=parseFloat(doseForWeek(w)); return t; }
+function renderOutils(){
+  const sub = cur.toolTab||"recon";
+  const pills = [["recon","Reconstitution"],["zones","Zones d'injection"],["tdee","TDEE"]];
+  let html = `<div class="pill-tabs">${pills.map(([k,v])=>`<button class="${sub===k?'on':''}" onclick="cur.toolTab='${k}';render()">${v}</button>`).join("")}</div>`;
+  if(sub==="recon") html += toolRecon();
+  else if(sub==="zones") html += toolZones();
+  else html += toolTdee();
+  $("#app").innerHTML = html;
+}
+
+function toolRecon(){
+  const t = tv();
+  const curW = state.start ? weekNum(iso(new Date())) : null;
+  const defDose = (curW && curW>=1 && curW<=16) ? parseFloat(doseForWeek(curW)) : 1;
+  const vial = t.vial ?? 10, bac = t.bac ?? 1, dose = t.dose ?? defDose, cap = t.syr ?? 100;
+  const conc = vial/bac;                       // mg/ml
+  const vol = dose/conc;                       // ml
+  const ui = vol*100;                          // 1 UI = 0.01 ml
+  const dosesFiole = dose>0 ? Math.floor(vial/dose) : 0;
+  const totalMg = protocolTotalMg();
+  const fioles = Math.ceil(totalMg/vial);
+  const semParFiole = dose>0 ? (vial/dose) : 0;
+  const over = ui > cap;
+  let html = `<div class="card"><h2>${IC.calc} Calculateur de reconstitution & dosage</h2>
+    <div class="row" style="gap:12px">
+      <label class="muted" style="font-size:11px">Fiole (mg)<br><input type="number" step="1" min="1" value="${vial}" onchange="setTool('vial',this.value)"></label>
+      <label class="muted" style="font-size:11px">Eau BAC (ml)<br><input type="number" step="0.1" min="0.1" value="${bac}" onchange="setTool('bac',this.value)"></label>
+      <label class="muted" style="font-size:11px">Dose (mg)<br><input type="number" step="0.25" min="0.25" value="${dose}" onchange="setTool('dose',this.value)"></label>
+      <label class="muted" style="font-size:11px">Seringue<br><select onchange="setTool('syr',this.value)">
+        <option value="100" ${cap==100?"selected":""}>1 ml (100 UI)</option>
+        <option value="50" ${cap==50?"selected":""}>0,5 ml (50 UI)</option>
+        <option value="30" ${cap==30?"selected":""}>0,3 ml (30 UI)</option>
+      </select></label>
+    </div>
+    ${curW&&curW>=1&&curW<=16&&t.dose==null?`<p class="muted" style="margin-top:6px">Dose pré-remplie avec ta semaine actuelle (S${curW} : ${doseForWeek(curW)}).</p>`:""}
+    <div class="result-grid">
+      <div class="result-box"><div class="val">${conc.toFixed(1)} mg/ml</div><div class="lab">Concentration (${(conc*1000).toFixed(0)} mcg/ml)</div></div>
+      <div class="result-box"><div class="val">${vol.toFixed(3)} ml</div><div class="lab">Volume à injecter</div></div>
+      <div class="result-box"><div class="val" ${over?'style="color:var(--bad)"':''}>${ui.toFixed(1)} UI</div><div class="lab">Sur la seringue (cap. ${cap} UI)</div></div>
+      <div class="result-box"><div class="val">${dosesFiole}</div><div class="lab">Doses de ${dose} mg par fiole</div></div>
+    </div>
+    ${over?`<p style="margin-top:10px"><span class="badge bad">Volume supérieur à la capacité de la seringue — choisis une seringue plus grande ou réduis le volume d'eau BAC.</span></p>`:""}
+    <div style="margin-top:12px">${syringeSVG(ui,cap)}</div>
+    <p class="muted" style="margin-top:8px">UI = graduations d'une seringue insuline U-100 (1 UI = 0,01 ml). Valeurs indicatives.</p></div>`;
+  html += `<div class="card"><h2>${IC.syringe} Besoins sur les 16 semaines (plafond 2 mg)</h2>
+    <div class="result-grid">
+      <div class="result-box"><div class="val">${totalMg} mg</div><div class="lab">Quantité totale du protocole</div></div>
+      <div class="result-box"><div class="val">${fioles}</div><div class="lab">Fiole(s) de ${vial} mg</div></div>
+      <div class="result-box"><div class="val">16</div><div class="lab">Seringues (1 neuve/injection)</div></div>
+      <div class="result-box"><div class="val">${semParFiole?semParFiole.toFixed(1):"—"}</div><div class="lab">Semaines par fiole à ${dose} mg</div></div>
+    </div>
+    ${semParFiole>4?`<p style="margin-top:10px"><span class="badge warn">Attention : une fiole reconstituée se conserve ~4 semaines (2-8 °C). À ${dose} mg/sem, une fiole de ${vial} mg couvre ${semParFiole.toFixed(1)} semaines — reconstitue avec moins d'eau utilisable ou prévois de jeter le surplus.</span></p>`:`<p class="muted" style="margin-top:10px">Conservation après reconstitution : ~4 semaines au réfrigérateur (2-8 °C). Ne pas congeler, ne pas agiter vigoureusement.</p>`}
+    </div>`;
+  return html;
+}
+function syringeSVG(ui,cap){
+  const W=340,H=64,bx=16,bw=280,by=18,bh=24;
+  const fw = Math.max(0,Math.min(ui,cap))/cap*bw;
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:420px">`;
+  g += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" stroke="rgba(212,175,55,.45)" stroke-width="1.5"/>`;
+  g += `<rect x="${bx}" y="${by}" width="${fw.toFixed(1)}" height="${bh}" rx="4" fill="rgba(212,175,55,.35)"/>`;
+  g += `<rect x="${bx+bw}" y="${by+7}" width="14" height="10" fill="rgba(212,175,55,.45)"/><line x1="${bx+bw+14}" y1="${by+12}" x2="${W-2}" y2="${by+12}" stroke="rgba(212,175,55,.7)" stroke-width="1.6"/>`;
+  for(let u=0;u<=cap;u+=cap/10){
+    const x = bx + u/cap*bw;
+    g += `<line x1="${x}" y1="${by}" x2="${x}" y2="${by+(u%(cap/2)===0?9:5)}" stroke="rgba(232,226,212,.5)" stroke-width="1"/>`;
+    if(u%(cap/2)===0) g += `<text x="${x-6}" y="${by+bh+14}" font-size="9" fill="#9b9484">${u}</text>`;
+  }
+  g += `<text x="${bx}" y="12" font-size="10" fill="#d4af37" font-weight="700">Prélever ${ui.toFixed(1)} UI</text>`;
+  return g+`</svg>`;
+}
+function toolZones(){
+  const zones = [
+    ["Abdomen","Zone la plus courante : peau souple, tissu sous-cutané abondant, absorption régulière. Rester à 5 cm minimum du nombril."],
+    ["Flancs","Bonne alternative pour la rotation. Pincer un pli de peau franc avant de piquer."],
+    ["Cuisses","Face antéro-externe, tiers supérieur. Pratique en auto-injection, position assise."],
+    ["Bras","Face postérieure du haut du bras. Plus facile avec l'aide d'un tiers."],
+    ["Fesses","Quadrant supérieur externe, riche en tissu adipeux, bien toléré."]
+  ];
+  const tech = ["Se laver les mains","Désinfecter la zone, laisser sécher","Pincer un pli de peau","Insérer l'aiguille à 45-90°","Injecter lentement","Retirer, relâcher le pli, ne pas masser"];
+  const avoid = ["À moins de 5 cm du nombril","Os, articulations, veines visibles","Zones irritées, blessées ou avec ecchymoses","Cicatrices, tatouages, grains de beauté","Ne jamais injecter en intramusculaire — rester sous-cutané"];
+  let html = `<div class="card"><h2>${IC.body} Zones d'injection sous-cutanée</h2>
+    <p class="muted" style="margin-bottom:10px">Aiguilles conseillées : 29-31G, 4 à 8 mm. Voie sous-cutanée uniquement, 1 injection/semaine, le soir (meilleure tolérance).</p>
+    ${zones.map(([n,d])=>`<div class="zone-card"><b>${n}</b><p>${d}</p></div>`).join("")}</div>`;
+  html += `<div class="card"><h2>${IC.proto} Technique pas à pas</h2><ol class="steps">${tech.map(s=>`<li>${s}</li>`).join("")}</ol></div>`;
+  html += `<div class="card"><h2>${IC.alert} À éviter</h2><ul class="avoid">${avoid.map(a=>`<li>${a}</li>`).join("")}</ul>
+    <p class="muted" style="margin-top:8px">La rotation des sites est suivie automatiquement dans l'onglet Protocole (une suggestion par semaine). Schéma indicatif — ne remplace pas une formation ou un avis médical.</p></div>`;
+  return html;
+}
+function toolTdee(){
+  const t = tv();
+  const entries = Object.entries(state.weights).sort();
+  const lastKg = entries.length ? entries[entries.length-1][1] : 85;
+  const sexe = t.sexe ?? "F", age = t.age ?? 38, taille = t.taille ?? 158, poids = t.poids ?? lastKg, act = t.act ?? 1.375;
+  const bmr = Math.round(10*poids + 6.25*taille - 5*age + (sexe==="M"?5:-161));
+  const tdee = Math.round(bmr*act);
+  const seche = Math.round(tdee*0.85);
+  const ph = phaseOf(iso(new Date()));
+  const mid = ph ? (ph.kcal[0]+ph.kcal[1])/2 : null;
+  const defPct = mid ? Math.round((1-mid/tdee)*100) : null;
+  let html = `<div class="card"><h2>${IC.target} Calculateur TDEE (Mifflin-St Jeor)</h2>
+    <div class="row" style="gap:12px">
+      <label class="muted" style="font-size:11px">Sexe<br><select onchange="tv().sexe=this.value;save();render()">
+        <option value="F" ${sexe==="F"?"selected":""}>Femme</option><option value="M" ${sexe==="M"?"selected":""}>Homme</option></select></label>
+      <label class="muted" style="font-size:11px">Âge<br><input type="number" min="15" max="100" value="${age}" onchange="setTool('age',this.value)"></label>
+      <label class="muted" style="font-size:11px">Poids (kg)<br><input type="number" step="0.1" value="${poids}" onchange="setTool('poids',this.value)"></label>
+      <label class="muted" style="font-size:11px">Taille (cm)<br><input type="number" value="${taille}" onchange="setTool('taille',this.value)"></label>
+    </div>
+    <label class="muted" style="font-size:11px;display:block;margin-top:10px">Niveau d'activité<br>
+    <select onchange="setTool('act',this.value)" style="width:100%;margin-top:3px">
+      <option value="1.2" ${act==1.2?"selected":""}>Sédentaire — peu ou pas d'exercice (×1.2)</option>
+      <option value="1.375" ${act==1.375?"selected":""}>Légèrement actif — 1 à 3 séances/sem (×1.375)</option>
+      <option value="1.55" ${act==1.55?"selected":""}>Modérément actif — 3 à 5 séances/sem (×1.55)</option>
+      <option value="1.725" ${act==1.725?"selected":""}>Très actif — 6 à 7 séances/sem (×1.725)</option>
+    </select></label>
+    ${entries.length&&t.poids==null?`<p class="muted" style="margin-top:6px">Poids pré-rempli avec ta dernière pesée (${lastKg} kg).</p>`:""}
+    <div class="result-grid">
+      <div class="result-box"><div class="val">${bmr}</div><div class="lab">Métabolisme de base (kcal/j)</div></div>
+      <div class="result-box"><div class="val">${tdee}</div><div class="lab">Maintenance — TDEE (kcal/j)</div></div>
+      <div class="result-box"><div class="val">${seche}</div><div class="lab">Déficit modéré −15 % (kcal/j)</div></div>
+      ${mid?`<div class="result-box"><div class="val">${ph.kcal[0]}-${ph.kcal[1]}</div><div class="lab">Cible actuelle de l'app (déficit ≈ ${defPct} % vs TDEE)</div></div>`:""}
+    </div>
+    ${mid&&defPct>35?`<p style="margin-top:10px"><span class="badge warn">Le déficit du plan (≈ ${defPct} %) est agressif par rapport à ton TDEE estimé. Une perte > 1 %/semaine est trop rapide : mieux vaut remonter les calories que forcer. À valider avec un professionnel.</span></p>`:""}
+    <p class="muted" style="margin-top:10px">Estimation indicative : ajuste selon l'évolution réelle du poids sur 2-3 semaines (courbe dans l'onglet Poids).</p></div>`;
+  return html;
+}
+
+/* ---------- Vue Recettes ---------- */
+function renderRecettes(){
+  const types = [["petit_dej","Petit-déj"],["collation","Collations"],["repas","Repas"]];
+  let html = `<div class="pill-tabs">${types.map(([k,v])=>`<button class="${cur.recFilter===k?'on':''}" onclick="cur.recFilter='${k}';render()">${v} (${allRecipes(k).length})</button>`).join("")}</div>
+  <input type="text" value="${esc(cur.recSearch||"")}" placeholder="Rechercher une recette ou un ingrédient…" style="width:100%;margin-bottom:12px"
+    onchange="cur.recSearch=this.value;render()">`;
+  const q = (cur.recSearch||"").toLowerCase();
+  allRecipes(cur.recFilter).filter(r=>{
+    if(!q) return true;
+    if(r.nom.toLowerCase().includes(q)) return true;
+    return r.items.some(it=>{const f=findFood(it[0],it[1]);return f&&f.nom.toLowerCase().includes(q);});
+  }).forEach(r=>{
+    const t = mealTotals(r.items);
+    html += `<div class="recipe-card">
+      <div class="row" style="justify-content:space-between"><b>${esc(r.nom)}</b><span class="badge gold">${Math.round(t.k)} kcal · ${t.p.toFixed(0)} g prot.</span></div>
+      <div class="ing">${r.items.map(it=>{const f=findFood(it[0],it[1]);return f?`${esc(f.nom)} ${it[2]} g`:"?";}).join(" · ")}</div>
+      <div class="instr">${IC.chef} ${esc(r.instr)}</div>
+      ${(state.customRecipes||[]).some(c=>c.id===r.id)?`<button class="btn small danger" style="margin-top:8px" onclick="delRecipe('${r.id}')">Supprimer</button>`:""}
+    </div>`;
+  });
+  html += `<div class="card"><h2>${IC.chef} Créer une recette</h2>
+    <div class="formgrid">
+      <input type="text" id="nr_nom" placeholder="Nom de la recette">
+      <select id="nr_type">${types.map(([k,v])=>`<option value="${k}" ${cur.recFilter===k?"selected":""}>${v}</option>`).join("")}</select>
+      <div id="nr_items"></div>
+      <div class="row"><select id="nr_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+      <button class="btn small" onclick="nrAddRow()">+ Ingrédient</button></div>
+      <textarea id="nr_instr" placeholder="Étapes de préparation…"></textarea>
+      <button class="btn primary" onclick="saveRecipe()">Enregistrer la recette</button>
+      <p class="muted">Utilise de préférence des aliments low FODMAP de la base (extensible dans l'onglet Aliments). Pas de banane, porc ni papaye.</p>
+    </div></div>`;
+  $("#app").innerHTML = html;
+  nrRows = [];
+}
+let nrRows = [];
+function nrAddRow(){
+  const cat = $("#nr_cat").value;
+  const foods = allFoods(cat);
+  if(!foods.length) return;
+  nrRows.push([cat, foods[0].id, 100]);
+  drawNrRows();
+}
+function drawNrRows(){
+  $("#nr_items").innerHTML = nrRows.map((r,i)=>`<div class="row" style="margin-bottom:6px">
+    <select onchange="nrRows[${i}][1]=this.value">${allFoods(r[0]).map(f=>`<option value="${f.id}" ${f.id===r[1]?"selected":""}>${esc(f.nom)}</option>`).join("")}</select>
+    <input type="number" min="1" value="${r[2]}" onchange="nrRows[${i}][2]=Number(this.value)||1"> g
+    <button class="xbtn" onclick="nrRows.splice(${i},1);drawNrRows()">✕</button></div>`).join("");
+}
+function saveRecipe(){
+  const nom = $("#nr_nom").value.trim();
+  const instr = $("#nr_instr").value.trim();
+  if(!nom || !nrRows.length){ alert("Nom et au moins un ingrédient requis."); return; }
+  state.customRecipes = state.customRecipes||[];
+  state.customRecipes.push({id:"cr"+Date.now(), type:$("#nr_type").value, nom, instr:instr||"—", items:nrRows.map(r=>r.slice())});
+  save(); render();
+}
+function delRecipe(id){ state.customRecipes = (state.customRecipes||[]).filter(r=>r.id!==id); save(); render(); }
+
+/* ---------- Vue Poids ---------- */
+function renderPoids(){
+  const entries = Object.entries(state.weights).sort((a,b)=>a[0]<b[0]?-1:1);
+  let html = `<div class="card"><h2>${IC.weight} Suivi de poids</h2>
+    <div class="row">
+      <input type="date" id="w_date" value="${iso(new Date())}">
+      <input type="number" id="w_kg" step="0.1" min="30" max="250" placeholder="kg" style="width:90px">
+      <button class="btn primary" onclick="addWeight()">Enregistrer</button>
+    </div>
+    <p class="muted" style="margin-top:6px">Pèse-toi une fois par semaine, idéalement le même jour au réveil.</p></div>`;
+
+  if(entries.length){
+    html += `<div class="card"><h2>${IC.weight} Courbe (16 semaines)</h2><div id="chartWrap">${weightChart(entries)}</div></div>`;
+    html += `<div class="card"><table><tr><th>Date</th><th>Semaine</th><th>Poids</th><th>Δ</th><th></th></tr>`;
+    entries.forEach(([d,kg],i)=>{
+      const w = weekNum(d);
+      const delta = i>0 ? (kg-entries[i-1][1]) : null;
+      html += `<tr><td>${parseISO(d).toLocaleDateString("fr-FR")}</td><td>${w&&w>=1&&w<=16?"S"+w:"—"}</td><td><b>${kg.toFixed(1)} kg</b></td>
+        <td>${delta===null?"—":(delta>0?"+":"")+delta.toFixed(1)+" kg"}</td>
+        <td><button class="xbtn" onclick="delWeight('${d}')">✕</button></td></tr>`;
+    });
+    const first=entries[0][1], last=entries[entries.length-1][1];
+    html += `</table><p style="margin-top:8px"><b>Total : ${(last-first>0?"+":"")+(last-first).toFixed(1)} kg</b> depuis le ${parseISO(entries[0][0]).toLocaleDateString("fr-FR")}</p></div>`;
+    html += `<button class="btn" onclick="exportWeightCSV()">${IC.export} Exporter le poids (CSV)</button>`;
+  } else html += `<div class="card muted">Aucune pesée enregistrée pour l'instant.</div>`;
+  $("#app").innerHTML = html;
+}
+function addWeight(){
+  const d = $("#w_date").value, kg = parseFloat($("#w_kg").value);
+  if(!d || !kg){ alert("Date et poids requis."); return; }
+  state.weights[d] = kg; save(); render();
+}
+function delWeight(d){ delete state.weights[d]; save(); render(); }
+function weightChart(entries){
+  const W=680,H=220,P=34;
+  const kgs = entries.map(e=>e[1]);
+  const lo = Math.floor(Math.min(...kgs))-1, hi = Math.ceil(Math.max(...kgs))+1;
+  const t0 = state.start ? parseISO(state.start).getTime() : parseISO(entries[0][0]).getTime();
+  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5);
+  const x = d => P + (parseISO(d).getTime()-t0)/span*(W-2*P);
+  const y = kg => H-P - (kg-lo)/(hi-lo)*(H-2*P);
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:480px">`;
+  for(let k=lo;k<=hi;k+=Math.max(1,Math.round((hi-lo)/5))){
+    g += `<line x1="${P}" y1="${y(k)}" x2="${W-P}" y2="${y(k)}" stroke="rgba(212,175,55,.14)"/><text x="4" y="${y(k)+4}" font-size="10" fill="#9b9484">${k}</text>`;
+  }
+  for(let w=0;w<=16;w+=4){
+    const xx = P + (w*7*864e5)/span*(W-2*P);
+    g += `<line x1="${xx}" y1="${P/2}" x2="${xx}" y2="${H-P}" stroke="rgba(212,175,55,.08)"/><text x="${xx-8}" y="${H-8}" font-size="10" fill="#9b9484">S${w}</text>`;
+  }
+  const pts = entries.map(([d,kg])=>`${x(d).toFixed(1)},${y(kg).toFixed(1)}`).join(" ");
+  g += `<polyline points="${pts}" fill="none" stroke="#d4af37" stroke-width="2.5"/>`;
+  entries.forEach(([d,kg])=>{ g += `<circle cx="${x(d)}" cy="${y(kg)}" r="4" fill="#d4af37"/><text x="${x(d)-10}" y="${y(kg)-8}" font-size="10" fill="#e8e2d4">${kg.toFixed(1)}</text>`; });
+  return g+`</svg>`;
+}
+
+/* ---------- Vue Aliments ---------- */
+function renderAliments(){
+  let html = `<div class="card"><h2>${IC.alert} Aliments à ÉVITER</h2><ul class="avoid">${AVOID.map(a=>`<li>${a}</li>`).join("")}</ul></div>`;
+  Object.entries(CATS).forEach(([cat,label])=>{
+    html += `<div class="card"><h2>${label}</h2><table><tr><th>Aliment</th><th>kcal/100g</th><th>Prot./100g</th><th></th></tr>
+    ${allFoods(cat).map(f=>{
+      const custom = (state.customFoods[cat]||[]).some(c=>c.id===f.id);
+      return `<tr><td>${esc(f.nom)}${custom?' <span class="badge gold">ajouté</span>':''}</td><td>${f.kcal}</td><td>${f.prot}</td>
+      <td>${custom?`<button class="xbtn" onclick="delFood('${cat}','${f.id}')">✕</button>`:""}</td></tr>`;
+    }).join("")}</table></div>`;
+  });
+  html += `<div class="card"><h2>${IC.foods} Ajouter un aliment</h2>
+    <div class="formgrid">
+      <select id="nf_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+      <input type="text" id="nf_nom" placeholder="Nom de l'aliment (low FODMAP de préférence)">
+      <div class="row"><input type="number" id="nf_kcal" step="1" min="1" placeholder="kcal/100g" style="width:110px">
+      <input type="number" id="nf_prot" step="0.1" min="0" placeholder="prot g/100g" style="width:110px"></div>
+      <button class="btn primary" onclick="addFood()">Ajouter</button>
+      <p class="muted">Vérifie que l'aliment est compatible low FODMAP avant de l'ajouter (appli Monash FODMAP en référence). Exclusions : banane, porc, papaye.</p>
+    </div></div>`;
+  $("#app").innerHTML = html;
+}
+function addFood(){
+  const cat=$("#nf_cat").value, nom=$("#nf_nom").value.trim(), kcal=parseFloat($("#nf_kcal").value), prot=parseFloat($("#nf_prot").value);
+  if(!nom||!kcal||isNaN(prot)){ alert("Nom, kcal et protéines requis."); return; }
+  const banned = ["banane","porc","papaye"];
+  if(banned.some(b=>nom.toLowerCase().includes(b))){ alert("Cet aliment fait partie des exclusions (banane, porc, papaye)."); return; }
+  state.customFoods[cat]=state.customFoods[cat]||[];
+  state.customFoods[cat].push({id:"cf"+Date.now(),nom,kcal,prot});
+  save(); render();
+}
+function delFood(cat,id){ state.customFoods[cat]=(state.customFoods[cat]||[]).filter(f=>f.id!==id); save(); render(); }
+
+/* ---------- Export CSV ---------- */
+function dlCSV(name, rows){
+  const csv = "﻿"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download = name; a.click();
+}
+function exportWeekCSV(start){
+  const rows = [["Date","Repas","Aliment","Poids (g)","kcal","Protéines (g)"]];
+  for(let i=0;i<7;i++){
+    const d = addDays(start,i);
+    menuFor(d).forEach(m=>m.items.forEach(it=>{
+      const f=findFood(it[0],it[1]);
+      rows.push([d, m.nom, f?f.nom:"?", it[2], kcalOf(it).toFixed(0), protOf(it).toFixed(1)]);
+    }));
+    const t = dayTotals(menuFor(d));
+    rows.push([d,"TOTAL JOUR","","",t.k.toFixed(0),t.p.toFixed(1)]);
+  }
+  dlCSV(`menus_semaine_${start}.csv`, rows);
+}
+function exportWeightCSV(){
+  const rows=[["Date","Semaine protocole","Poids (kg)"]];
+  Object.entries(state.weights).sort().forEach(([d,kg])=>rows.push([d, weekNum(d)||"", kg]));
+  dlCSV("suivi_poids.csv", rows);
+}
+
+/* ---------- Réglages / démarrage ---------- */
+function openSettings(){
+  $("#inpStart").value = state.start || iso(new Date());
+  $("#dlgStart").showModal();
+}
+function saveStart(){
+  const v = $("#inpStart").value;
+  if(!v) return;
+  state.start = v; save();
+  $("#dlgStart").close(); render();
+}
+function exportAll(){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(state,null,1)],{type:"application/json"}));
+  a.download = "suivi-retatrutide-donnees-"+iso(new Date())+".json"; a.click();
+}
+function importAll(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const s = JSON.parse(rd.result);
+      if(typeof s!=="object" || !("menus" in s) || !("weights" in s)) throw 0;
+      Object.values(s.menus||{}).forEach(day=>day.forEach(m=>{ m.items=(m.items||[]).map(migrateItem); }));
+      (s.customRecipes||[]).forEach(r=>{ r.items=(r.items||[]).map(migrateItem); });
+      state = s; save();
+      $("#dlgStart").close(); render();
+      alert("Données importées avec succès.");
+    }catch(e){ alert("Fichier invalide : exporte d'abord depuis l'application."); }
+  };
+  rd.readAsText(f);
+  ev.target.value = "";
+}
+if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+if(!state.start){ openSettings(); }
+render();
+</script>
+</body>
+</html>
