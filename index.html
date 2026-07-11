@@ -69,7 +69,9 @@ textarea{width:100%;min-height:60px}
 .item{display:flex;gap:6px;align-items:center;padding:7px 11px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
 .item select{flex:1;min-width:130px}
 .item .kp{font-size:11.5px;color:var(--muted);min-width:92px;text-align:right}
-.xbtn{border:0;background:none;color:var(--bad);font-size:15px;cursor:pointer;padding:0 4px}
+.xbtn{border:0;background:none;color:var(--bad);font-size:16px;cursor:pointer;padding:8px 10px;margin:-6px -4px}
+.quip{font-size:12px;color:var(--gold);opacity:.72;font-style:italic;margin-top:5px}
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--gold-dark);padding:9px 20px;border-radius:999px;font-size:13px;font-weight:700;z-index:99;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.5)}
 .recipe-instr{padding:10px 13px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted);background:rgba(212,175,55,.04)}
 .totbar{position:sticky;top:0;z-index:10;display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px 15px;margin-bottom:12px;flex-wrap:wrap}
 .totbar .big{font-size:17px;font-weight:700;font-family:Cinzel}
@@ -412,8 +414,9 @@ function rangeBadge(val,[lo,hi],unit){
 }
 // Badge synthétique : ✓ si tout est dans la cible, sinon indique quoi et de combien
 function statusBadge(t, ph){
-  const dk = t.k<ph.kcal[0] ? t.k-ph.kcal[0] : (t.k>ph.kcal[1] ? t.k-ph.kcal[1] : 0);
-  const dp = t.p<ph.prot[0] ? t.p-ph.prot[0] : (t.p>ph.prot[1] ? t.p-ph.prot[1] : 0);
+  let dk = t.k<ph.kcal[0] ? t.k-ph.kcal[0] : (t.k>ph.kcal[1] ? t.k-ph.kcal[1] : 0);
+  let dp = t.p<ph.prot[0] ? t.p-ph.prot[0] : (t.p>ph.prot[1] ? t.p-ph.prot[1] : 0);
+  if(Math.abs(dk)<0.5) dk=0; if(Math.abs(dp)<0.5) dp=0; // évite les « −0 » d'arrondi
   if(!dk && !dp) return `<span class="badge ok">✓ dans la cible</span>`;
   const parts = [];
   if(dk) parts.push((dk>0?"+":"−")+Math.abs(Math.round(dk))+" kcal");
@@ -445,6 +448,51 @@ const IC = {
 /* ================= UI ================= */
 const $ = s=>document.querySelector(s);
 let cur = {tab:"jour", date: iso(new Date()), recFilter:"repas"};
+
+// Feedback léger après action
+function toast(msg){
+  let el = document.getElementById("toast");
+  if(!el){ el = document.createElement("div"); el.id = "toast"; document.body.appendChild(el); }
+  el.textContent = msg; el.style.opacity = 1;
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ el.style.opacity = 0; }, 1900);
+}
+
+// Ton maison pour les sections nourriture (une pointe d'humour, jamais sur le médical)
+const INTROS = {
+  petit_dej:"Commencer la journée sans négocier avec ton intestin — voilà le programme.",
+  collation:"Des pauses gourmandes qui rentrent dans les clous (et dans la poche).",
+  repas:"Des plats sérieux sur les macros, détendus sur tout le reste."
+};
+const QUIPS = {
+  petit_dej:[
+    "Réveille les muscles, pas le SIBO.",
+    "Bosse pour toi avant même ton premier café.",
+    "Simple, digeste, zéro drame intestinal.",
+    "De quoi tenir jusqu'à la collation sans négocier.",
+    "Ton intestin valide, tes macros aussi."
+  ],
+  collation:[
+    "Petit creux, grande stratégie.",
+    "La pause qui ne trahit pas tes cibles.",
+    "Mieux qu'un distributeur, plus fiable qu'un buffet.",
+    "Le snack diplomatique : tout le monde est content, même ton ventre.",
+    "Faim domptée, cibles intactes."
+  ],
+  repas:[
+    "Un plat qui muscle tes protéines pendant que tu profites.",
+    "Le SIBO reste à la porte, toi tu passes à table.",
+    "Cuisine simple, résultats sérieux.",
+    "Ton assiette a un plan, et elle s'y tient.",
+    "Rassasiant, conforme, et franchement pas triste.",
+    "Zéro oignon, zéro ail, zéro regret."
+  ]
+};
+function quip(type,id){
+  const q = QUIPS[type]||[];
+  if(!q.length) return "";
+  let h=0; for(const c of String(id)) h=(h+c.charCodeAt(0))%997;
+  return q[h%q.length];
+}
 
 const TABS = [
  {id:"jour",ic:IC.day,lab:"Jour"},
@@ -546,9 +594,9 @@ function renderDay(){
 function saveJournal(){
   state.journal = state.journal||{};
   const e = {dig:$("#jr_dig").value, ener:$("#jr_ener").value, faim:$("#jr_faim").value, note:$("#jr_note").value.trim()};
-  if(!e.dig && !e.ener && !e.faim && !e.note) delete state.journal[cur.date]; // pas d'entrée vide
-  else state.journal[cur.date] = e;
-  save(); render();
+  if(!e.dig && !e.ener && !e.faim && !e.note){ delete state.journal[cur.date]; save(); render(); return; } // pas d'entrée vide
+  state.journal[cur.date] = e;
+  save(); render(); toast("Journal enregistré");
 }
 function chDay(n){ cur.date = addDays(cur.date,n); render(); }
 function swapFood(mi,ii,newId){
@@ -591,7 +639,10 @@ function applyRecipe(mi,val){
   }
   save(); render();
 }
-function resetDay(){ delete state.menus[cur.date]; save(); render(); }
+function resetDay(){
+  if(!confirm("Revenir au menu de base pour ce jour ? Les modifications de ce jour seront perdues.")) return;
+  delete state.menus[cur.date]; save(); render(); toast("Menu de base restauré");
+}
 
 /* ---------- Vue Semaine ---------- */
 function weekStart(dateISO){ return addDays(dateISO, -weekdayIdx(dateISO)); }
@@ -652,7 +703,7 @@ function copyShop(start){
     if(!rows.length) return;
     txt += "\n"+label.toUpperCase()+"\n"+rows.map(([k,g])=>{const f=findFood(cat,k.split("|")[1]);return f?"- "+f.nom+" : "+Math.round(g)+" g":"";}).join("\n")+"\n";
   });
-  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>alert("Liste copiée !")).catch(()=>prompt("Copie manuelle :",txt));
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Liste de courses copiée")).catch(()=>prompt("Copie manuelle :",txt));
 }
 
 /* ---------- Vue Protocole + injections ---------- */
@@ -742,7 +793,7 @@ function applyIdee(slot,recId){
   if(!r) return;
   meals[slot].recipeId = r.id;
   meals[slot].items = r.items.map(it=>it.slice());
-  save(); cur.date = today; go("jour");
+  save(); cur.date = today; go("jour"); toast("Recette appliquée au "+MEAL_DEFS[slot].nom.toLowerCase());
 }
 function toolIdees(){
   cur.fridge = cur.fridge||{};
@@ -754,6 +805,7 @@ function toolIdees(){
   const tot = dayTotals(meals);
   const slotTot = mealTotals(meals[slot].items);
   let html = `<div class="card"><h2>${IC.chef} Je ne sais pas quoi manger…</h2>
+    <p class="muted" style="font-style:italic">Frigo à moitié vide ou inspiration en panne ? Les deux se soignent ici.</p>
     <p class="muted">Coche ce que tu as sous la main : suggestions low FODMAP classées, avec l'impact sur tes cibles du jour.</p>
     <label class="muted" style="font-size:11px;display:block;margin:10px 0 4px">Pour quel repas d'aujourd'hui ?</label>
     <select onchange="cur.ideeSlot=Number(this.value);render()">${MEAL_DEFS.map((m,i)=>`<option value="${i}" ${i===slot?"selected":""}>${m.nom}</option>`).join("")}</select>`;
@@ -779,7 +831,8 @@ function toolIdees(){
       const missNames = s.missing.map(k=>{const [c,i]=k.split("|");const f=findFood(c,i);return f?f.nom:i;});
       html += `<div class="recipe-card">
         <div class="row" style="justify-content:space-between"><b>${esc(s.r.nom)}</b><span class="badge gold">${Math.round(t2.k)} kcal · ${t2.p.toFixed(0)} g prot.</span></div>
-        <p class="muted" style="margin-top:5px">Tu as ${s.have}/${s.need} ingrédients${missNames.length?` · il manque : ${esc(missNames.join(", "))}`:" — tout est là !"}</p>
+        <p class="quip">${quip(s.r.type,s.r.id)}</p>
+        <p class="muted" style="margin-top:5px">Tu as ${s.have}/${s.need} ingrédients${missNames.length?` · il manque : ${esc(missNames.join(", "))}`:" — tout est là, aucune excuse !"}</p>
         ${ph?`<p class="muted" style="margin-top:5px">Journée si appliqué : ${Math.round(newDay.k)} kcal / ${Math.round(newDay.p)} g ${statusBadge(newDay,ph)}</p>`:""}
         <button class="btn small primary" style="margin-top:8px" onclick="applyIdee(${slot},'${s.r.id}')">Mettre au ${esc(MEAL_DEFS[slot].nom.toLowerCase())} d'aujourd'hui</button>
       </div>`;
@@ -972,6 +1025,7 @@ function toolTdee(){
 function renderRecettes(){
   const types = [["petit_dej","Petit-déj"],["collation","Collations"],["repas","Repas"]];
   let html = `<div class="pill-tabs">${types.map(([k,v])=>`<button class="${cur.recFilter===k?'on':''}" onclick="cur.recFilter='${k}';render()">${v} (${allRecipes(k).length})</button>`).join("")}</div>
+  <p class="muted" style="margin:-2px 0 10px;font-style:italic">${INTROS[cur.recFilter]||""}</p>
   <input type="text" value="${esc(cur.recSearch||"")}" placeholder="Rechercher une recette ou un ingrédient…" style="width:100%;margin-bottom:12px"
     onchange="cur.recSearch=this.value;render()">`;
   const q = (cur.recSearch||"").toLowerCase();
@@ -983,6 +1037,7 @@ function renderRecettes(){
     const t = mealTotals(r.items);
     html += `<div class="recipe-card">
       <div class="row" style="justify-content:space-between"><b>${esc(r.nom)}</b><span class="badge gold">${Math.round(t.k)} kcal · ${t.p.toFixed(0)} g prot.</span></div>
+      <p class="quip">${quip(r.type,r.id)}</p>
       <div class="ing">${r.items.map(it=>{const f=findFood(it[0],it[1]);return f?`${esc(f.nom)} ${it[2]} g`:"?";}).join(" · ")}</div>
       <div class="instr">${IC.chef} ${esc(r.instr)}</div>
       ${(state.customRecipes||[]).some(c=>c.id===r.id)?`<button class="btn small danger" style="margin-top:8px" onclick="delRecipe('${r.id}')">Supprimer</button>`:""}
@@ -1022,9 +1077,12 @@ function saveRecipe(){
   if(!nom || !nrRows.length){ alert("Nom et au moins un ingrédient requis."); return; }
   state.customRecipes = state.customRecipes||[];
   state.customRecipes.push({id:"cr"+Date.now(), type:$("#nr_type").value, nom, instr:instr||"—", items:nrRows.map(r=>r.slice())});
-  save(); render();
+  save(); render(); toast("Recette enregistrée");
 }
-function delRecipe(id){ state.customRecipes = (state.customRecipes||[]).filter(r=>r.id!==id); save(); render(); }
+function delRecipe(id){
+  if(!confirm("Supprimer cette recette ?")) return;
+  state.customRecipes = (state.customRecipes||[]).filter(r=>r.id!==id); save(); render(); toast("Recette supprimée");
+}
 
 /* ---------- Vue Poids ---------- */
 function renderPoids(){
@@ -1057,9 +1115,12 @@ function renderPoids(){
 function addWeight(){
   const d = $("#w_date").value, kg = parseFloat($("#w_kg").value);
   if(!d || !kg){ alert("Date et poids requis."); return; }
-  state.weights[d] = kg; save(); render();
+  state.weights[d] = kg; save(); render(); toast("Pesée enregistrée");
 }
-function delWeight(d){ delete state.weights[d]; save(); render(); }
+function delWeight(d){
+  if(!confirm("Supprimer cette pesée ?")) return;
+  delete state.weights[d]; save(); render(); toast("Pesée supprimée");
+}
 function weightChart(entries){
   const W=680,H=230,PL=46,PR=20,PT=24,PB=34;
   const kgs = entries.map(e=>e[1]);
@@ -1120,9 +1181,12 @@ function addFood(){
   if(banned.some(b=>nom.toLowerCase().includes(b))){ alert("Cet aliment fait partie des exclusions (banane, porc, papaye)."); return; }
   state.customFoods[cat]=state.customFoods[cat]||[];
   state.customFoods[cat].push({id:"cf"+Date.now(),nom,kcal,prot});
-  save(); render();
+  save(); render(); toast("Aliment ajouté à la base");
 }
-function delFood(cat,id){ state.customFoods[cat]=(state.customFoods[cat]||[]).filter(f=>f.id!==id); save(); render(); }
+function delFood(cat,id){
+  if(!confirm("Supprimer cet aliment de la base ?")) return;
+  state.customFoods[cat]=(state.customFoods[cat]||[]).filter(f=>f.id!==id); save(); render(); toast("Aliment supprimé");
+}
 
 /* ---------- Export CSV ---------- */
 function dlCSV(name, rows){
