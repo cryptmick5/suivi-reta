@@ -91,6 +91,19 @@ th{color:var(--gold);font-weight:600;font-size:11px;text-transform:uppercase;let
 .pill-tabs button.on{background:var(--gold);color:var(--gold-dark);border-color:var(--gold);font-weight:700}
 .chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 11px;font-size:12px;color:var(--muted);cursor:pointer;margin:3px 3px 3px 0;font-family:Manrope}
 .chip.on{background:var(--gold);color:var(--gold-dark);border-color:var(--gold);font-weight:600}
+.inj-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:700px){.inj-grid{grid-template-columns:360px 1fr}}
+.inj-figs{display:flex;gap:10px;justify-content:center}
+.inj-fig{border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;background:var(--card2);flex:1;max-width:180px}
+.inj-fig .lab{font-size:9.5px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;display:block}
+.zoneEl{fill:rgba(87,201,138,.16);stroke:rgba(87,201,138,.5);stroke-width:1.3;cursor:pointer;transition:fill .2s,stroke .2s}
+.zoneEl:hover{fill:rgba(87,201,138,.3)}
+.zoneEl.sel{fill:rgba(212,175,55,.55);stroke:#d4af37;stroke-width:2;filter:drop-shadow(0 0 5px rgba(212,175,55,.9))}
+.inj-panel h3{font-family:Cinzel;color:var(--gold);font-size:16px;margin:2px 0 8px;letter-spacing:.04em}
+.inj-panel .sel-lab{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.note-star{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px;margin:10px 0;background:var(--gold-soft)}
+.inj-panel .uni{font-size:12.5px;color:var(--muted);line-height:1.7}
+.inj-panel .uni b{color:var(--ink)}
 .avoid li{font-size:13px;padding:5px 0;color:#d9a08c;list-style:none;border-bottom:1px solid var(--line-soft)}
 .avoid li:last-child{border-bottom:0}
 #chartWrap{overflow-x:auto}
@@ -839,22 +852,82 @@ function syringeSVG(ui,cap){
   g += `<text x="${bx}" y="12" font-size="10" fill="#d4af37" font-weight="700">Prélever ${ui.toFixed(1)} UI</text>`;
   return g+`</svg>`;
 }
+const ZONES_INJ = [
+ {id:"abdomen", nom:"Abdomen",
+  desc:"La zone la plus utilisée et la plus simple : peau souple, tissu sous-cutané épais, absorption régulière. Piquer à 5 cm minimum du nombril et varier les points d'un côté à l'autre.",
+  note:"Zone à privilégier pour le rétatrutide et les analogues GLP-1 en général.",
+  els:[{v:"f",cx:86,cy:144,rx:8,ry:11},{v:"f",cx:114,cy:144,rx:8,ry:11},{v:"f",cx:86,cy:168,rx:8,ry:11},{v:"f",cx:114,cy:168,rx:8,ry:11}]},
+ {id:"flancs", nom:"Flancs",
+  desc:"Au-dessus de la hanche, là où la peau se pince facilement en un pli franc. Bonne alternative quand l'abdomen a déjà servi récemment.",
+  note:"Pratique pour la rotation hebdomadaire : abdomen une semaine, flanc la suivante.",
+  els:[{v:"f",cx:62,cy:132,rx:7,ry:13},{v:"f",cx:138,cy:132,rx:7,ry:13}]},
+ {id:"cuisses", nom:"Cuisses",
+  desc:"Face avant et externe, tiers supérieur à moyen. Position assise confortable pour l'auto-injection, cuisse détendue.",
+  note:"Éviter la face interne (vaisseaux) et rester à distance du genou.",
+  els:[{v:"f",cx:81,cy:258,rx:11,ry:22},{v:"f",cx:119,cy:258,rx:11,ry:22},{v:"d",cx:81,cy:268,rx:10,ry:20},{v:"d",cx:119,cy:268,rx:10,ry:20}]},
+ {id:"bras", nom:"Bras",
+  desc:"Face arrière du haut du bras, où le tissu se laisse pincer. Nettement plus simple avec l'aide d'une autre personne.",
+  note:"Absorption comparable à l'abdomen — bonne option en dépannage.",
+  els:[{v:"d",cx:42,cy:108,rx:7,ry:13},{v:"d",cx:158,cy:108,rx:7,ry:13}]},
+ {id:"fesses", nom:"Fesses",
+  desc:"Quadrant supérieur externe uniquement : tissu adipeux épais, injection très bien tolérée.",
+  note:"Demander de l'aide pour viser correctement le quadrant externe.",
+  els:[{v:"d",cx:85,cy:225,rx:12,ry:10},{v:"d",cx:115,cy:225,rx:12,ry:10}]}
+];
+function selInjZone(id){ cur.injZone=id; render(); }
+function injSVG(view){
+  const selId = cur.injZone||"abdomen";
+  const body = `fill="rgba(212,175,55,.30)" stroke="rgba(212,175,55,.45)" stroke-width="1.2"`;
+  const limb = `stroke="rgba(212,175,55,.30)" stroke-linecap="round" fill="none"`;
+  let g = `<svg viewBox="0 0 200 420" width="100%" xmlns="http://www.w3.org/2000/svg">`;
+  g += `<circle cx="100" cy="30" r="21" ${body}/>`;
+  g += `<rect x="91" y="49" width="18" height="15" rx="5" ${body}/>`;
+  g += `<path d="M62,70 Q100,58 138,70 L145,158 Q147,190 137,214 L63,214 Q53,190 55,158 Z" ${body}/>`;
+  g += `<path d="M60,76 C42,90 38,132 33,196" stroke-width="15" ${limb}/>`;
+  g += `<path d="M140,76 C158,90 162,132 167,196" stroke-width="15" ${limb}/>`;
+  g += `<path d="M83,212 C81,268 80,335 78,400" stroke-width="23" ${limb}/>`;
+  g += `<path d="M117,212 C119,268 120,335 122,400" stroke-width="23" ${limb}/>`;
+  if(view==="d") g += `<line x1="100" y1="72" x2="100" y2="210" stroke="rgba(5,5,6,.5)" stroke-width="2"/>`;
+  if(view==="f") g += `<circle cx="100" cy="156" r="2.6" fill="rgba(5,5,6,.55)"/>`; // nombril (zone d'exclusion 5 cm)
+  ZONES_INJ.forEach(z=>{
+    z.els.filter(e=>e.v===view).forEach(e=>{
+      g += `<ellipse class="zoneEl ${z.id===selId?'sel':''}" cx="${e.cx}" cy="${e.cy}" rx="${e.rx}" ry="${e.ry}" onclick="selInjZone('${z.id}')"><title>${z.nom}</title></ellipse>`;
+    });
+  });
+  return g+`</svg>`;
+}
 function toolZones(){
-  const zones = [
-    ["Abdomen","Zone la plus courante : peau souple, tissu sous-cutané abondant, absorption régulière. Rester à 5 cm minimum du nombril."],
-    ["Flancs","Bonne alternative pour la rotation. Pincer un pli de peau franc avant de piquer."],
-    ["Cuisses","Face antéro-externe, tiers supérieur. Pratique en auto-injection, position assise."],
-    ["Bras","Face postérieure du haut du bras. Plus facile avec l'aide d'un tiers."],
-    ["Fesses","Quadrant supérieur externe, riche en tissu adipeux, bien toléré."]
-  ];
-  const tech = ["Se laver les mains","Désinfecter la zone, laisser sécher","Pincer un pli de peau","Insérer l'aiguille à 45-90°","Injecter lentement","Retirer, relâcher le pli, ne pas masser"];
+  const selId = cur.injZone||"abdomen";
+  const z = ZONES_INJ.find(x=>x.id===selId);
+  const tech = ["Se laver les mains","Désinfecter la zone, laisser sécher","Pincer un pli de peau","Insérer l'aiguille à 45-90°","Injecter lentement","Retirer, relâcher le pli, ne pas masser — aiguille neuve à chaque fois, jetée dans un collecteur"];
   const avoid = ["À moins de 5 cm du nombril","Os, articulations, veines visibles","Zones irritées, blessées ou avec ecchymoses","Cicatrices, tatouages, grains de beauté","Ne jamais injecter en intramusculaire — rester sous-cutané"];
-  let html = `<div class="card"><h2>${IC.body} Zones d'injection sous-cutanée</h2>
-    <p class="muted" style="margin-bottom:10px">Aiguilles conseillées : 29-31G, 4 à 8 mm. Voie sous-cutanée uniquement, 1 injection/semaine, le soir (meilleure tolérance).</p>
-    ${zones.map(([n,d])=>`<div class="zone-card"><b>${n}</b><p>${d}</p></div>`).join("")}</div>`;
+  let html = `<div class="card"><h2>${IC.body} Zones d'injection — clique une zone pour les détails</h2>
+    <div class="inj-grid">
+      <div>
+        <div class="inj-figs">
+          <div class="inj-fig"><span class="lab">Vue de face</span>${injSVG("f")}</div>
+          <div class="inj-fig"><span class="lab">Vue de dos</span>${injSVG("d")}</div>
+        </div>
+        <div class="pill-tabs" style="justify-content:center;margin-top:10px">
+          ${ZONES_INJ.map(x=>`<button class="${x.id===selId?'on':''}" onclick="selInjZone('${x.id}')">${x.nom}</button>`).join("")}
+        </div>
+      </div>
+      <div class="inj-panel">
+        <span class="sel-lab">Zone sélectionnée</span>
+        <h3>${z.nom}</h3>
+        <p style="font-size:13px;line-height:1.6">${z.desc}</p>
+        <div class="note-star">★ ${z.note}</div>
+        <p class="uni">
+          <b>Voie sous-cutanée</b> — aiguille 29-31G, 4 à 8 mm, angle 45-90°.<br>
+          <b>Rotation obligatoire</b> — jamais deux fois de suite au même endroit (suivi automatique dans l'onglet Protocole).<br>
+          <b>Hygiène</b> — désinfecter avant, injecter lentement, ne pas masser après.
+        </p>
+      </div>
+    </div>
+  </div>`;
   html += `<div class="card"><h2>${IC.proto} Technique pas à pas</h2><ol class="steps">${tech.map(s=>`<li>${s}</li>`).join("")}</ol></div>`;
   html += `<div class="card"><h2>${IC.alert} À éviter</h2><ul class="avoid">${avoid.map(a=>`<li>${a}</li>`).join("")}</ul>
-    <p class="muted" style="margin-top:8px">La rotation des sites est suivie automatiquement dans l'onglet Protocole (une suggestion par semaine). Schéma indicatif — ne remplace pas une formation ou un avis médical.</p></div>`;
+    <p class="muted" style="margin-top:8px">Schéma indicatif — ne remplace pas une formation ou un avis médical.</p></div>`;
   return html;
 }
 function toolTdee(){
