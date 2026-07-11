@@ -786,7 +786,7 @@ function toolIdees(){
     });
     const names = sel.map(k=>{const [c,i]=k.split("|");const f=findFood(c,i);return f?f.nom.split("(")[0].trim():"";}).filter(Boolean).slice(0,6);
     html += `<a class="btn" style="display:inline-block;text-decoration:none;margin-top:6px" target="_blank" rel="noopener"
-      href="https://www.google.com/search?q=${encodeURIComponent("recette low FODMAP sans oignon sans ail avec "+names.join(" "))}">${IC.export} Chercher plus d'idées en ligne (low FODMAP)</a>
+      href="https://www.perplexity.ai/search?q=${encodeURIComponent("Propose-moi des recettes low FODMAP (sans oignon, sans ail, sans lactose, sans banane ni porc ni papaye) avec : "+names.join(", ")+". Portion pour 1 personne, environ 400-500 kcal et riche en protéines.")}">${IC.export} Chercher plus d'idées sur Perplexity (low FODMAP)</a>
     <p class="muted" style="margin-top:6px">Pour les recettes trouvées en ligne, vérifie la liste « Aliments à éviter » et ajoute les ingrédients manquants à la base pour suivre les calories.</p></div>`;
   }
   return html;
