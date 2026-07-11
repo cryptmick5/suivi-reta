@@ -89,6 +89,8 @@ th{color:var(--gold);font-weight:600;font-size:11px;text-transform:uppercase;let
 .pill-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .pill-tabs button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--muted);font-family:Manrope}
 .pill-tabs button.on{background:var(--gold);color:var(--gold-dark);border-color:var(--gold);font-weight:700}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 11px;font-size:12px;color:var(--muted);cursor:pointer;margin:3px 3px 3px 0;font-family:Manrope}
+.chip.on{background:var(--gold);color:var(--gold-dark);border-color:var(--gold);font-weight:600}
 .avoid li{font-size:13px;padding:5px 0;color:#d9a08c;list-style:none;border-bottom:1px solid var(--line-soft)}
 .avoid li:last-child{border-bottom:0}
 #chartWrap{overflow-x:auto}
@@ -450,9 +452,10 @@ function render(){
   window.scrollTo(0,0);
 }
 function renderHead(){
-  const w = weekNum(cur.date), ph = phaseOf(cur.date);
+  const today = iso(new Date());
+  const w = weekNum(today), ph = phaseOf(today);
   $("#headSub").textContent = state.start
-    ? (ph ? `Semaine ${w}/16 · Mois ${ph.mois} · dose ${doseForWeek(w)}/sem (plafond 2 mg)` : (w<1?`Protocole débute le ${fmtDate(state.start)}`:`Protocole 16 semaines terminé`))
+    ? (ph ? `Aujourd'hui : semaine ${w}/16 · Mois ${ph.mois} · dose ${doseForWeek(w)}/sem (plafond 2 mg)` : (w<1?`Protocole débute le ${fmtDate(state.start)}`:`Protocole 16 semaines terminé`))
     : "Date de début non définie";
   $("#setBtn").innerHTML = IC.gear+" Réglages";
 }
@@ -529,7 +532,9 @@ function renderDay(){
 }
 function saveJournal(){
   state.journal = state.journal||{};
-  state.journal[cur.date] = {dig:$("#jr_dig").value, ener:$("#jr_ener").value, faim:$("#jr_faim").value, note:$("#jr_note").value.trim()};
+  const e = {dig:$("#jr_dig").value, ener:$("#jr_ener").value, faim:$("#jr_faim").value, note:$("#jr_note").value.trim()};
+  if(!e.dig && !e.ener && !e.faim && !e.note) delete state.journal[cur.date]; // pas d'entrée vide
+  else state.journal[cur.date] = e;
   save(); render();
 }
 function chDay(n){ cur.date = addDays(cur.date,n); render(); }
@@ -594,7 +599,7 @@ function renderWeek(){
     html += `<div class="dayline" onclick="cur.date='${d}';go('jour')">
       <div><b style="text-transform:capitalize">${parseISO(d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</b>
       ${state.menus[d]?'<span class="badge gold">modifié</span>':''}
-      ${(state.journal||{})[d]?'<span class="badge gold" title="Journal rempli">📝</span>':''}</div>
+      ${(state.journal||{})[d]?'<span class="badge gold" title="Journal rempli">'+IC.journal+'</span>':''}</div>
       <div class="muted">${Math.round(t.k)} kcal · ${Math.round(t.p)} g prot.</div>${badge}
     </div>`;
   }
@@ -701,13 +706,77 @@ function tv(){ state.tools = state.tools||{}; return state.tools; }
 function setTool(k,v){ tv()[k] = (v===""||v===null) ? null : Number(v); save(); render(); }
 function protocolTotalMg(){ let t=0; for(let w=1;w<=16;w++) t+=parseFloat(doseForWeek(w)); return t; }
 function renderOutils(){
-  const sub = cur.toolTab||"recon";
-  const pills = [["recon","Reconstitution"],["zones","Zones d'injection"],["tdee","TDEE"]];
+  const sub = cur.toolTab||"idees";
+  const pills = [["idees","Idées repas"],["recon","Reconstitution"],["zones","Zones d'injection"],["tdee","TDEE"]];
   let html = `<div class="pill-tabs">${pills.map(([k,v])=>`<button class="${sub===k?'on':''}" onclick="cur.toolTab='${k}';render()">${v}</button>`).join("")}</div>`;
   if(sub==="recon") html += toolRecon();
   else if(sub==="zones") html += toolZones();
-  else html += toolTdee();
+  else if(sub==="tdee") html += toolTdee();
+  else html += toolIdees();
   $("#app").innerHTML = html;
+}
+/* ---------- Idées repas : « j'ai ça dans mon frigo, je mange quoi ? » ---------- */
+function togFridge(cat,id){
+  cur.fridge = cur.fridge||{};
+  const k = cat+"|"+id;
+  if(cur.fridge[k]) delete cur.fridge[k]; else cur.fridge[k] = 1;
+  render();
+}
+function applyIdee(slot,recId){
+  const today = iso(new Date());
+  const meals = ensureOverride(today);
+  const r = findRecipe(recId);
+  if(!r) return;
+  meals[slot].recipeId = r.id;
+  meals[slot].items = r.items.map(it=>it.slice());
+  save(); cur.date = today; go("jour");
+}
+function toolIdees(){
+  cur.fridge = cur.fridge||{};
+  const slot = cur.ideeSlot ?? 4; // dîner par défaut
+  const type = MEAL_DEFS[slot].type;
+  const today = iso(new Date());
+  const ph = phaseOf(today);
+  const meals = menuFor(today);
+  const tot = dayTotals(meals);
+  const slotTot = mealTotals(meals[slot].items);
+  let html = `<div class="card"><h2>${IC.chef} Je ne sais pas quoi manger…</h2>
+    <p class="muted">Coche ce que tu as sous la main : suggestions low FODMAP classées, avec l'impact sur tes cibles du jour.</p>
+    <label class="muted" style="font-size:11px;display:block;margin:10px 0 4px">Pour quel repas d'aujourd'hui ?</label>
+    <select onchange="cur.ideeSlot=Number(this.value);render()">${MEAL_DEFS.map((m,i)=>`<option value="${i}" ${i===slot?"selected":""}>${m.nom}</option>`).join("")}</select>`;
+  Object.entries(CATS).forEach(([cat,label])=>{
+    if(cat==="matieres_grasses") return;
+    html += `<h3 style="color:var(--gold);font-size:12px;margin:12px 0 2px">${label}</h3><div>`+
+      allFoods(cat).map(f=>{const on=!!cur.fridge[cat+"|"+f.id];return `<button class="chip ${on?'on':''}" onclick="togFridge('${cat}','${f.id}')">${esc(f.nom)}</button>`;}).join("")+`</div>`;
+  });
+  const sel = Object.keys(cur.fridge);
+  html += sel.length?`<div class="row" style="margin-top:12px"><button class="btn small" onclick="cur.fridge={};render()">Tout décocher</button></div>`:"";
+  html += `</div>`;
+  if(sel.length){
+    const scored = allRecipes(type).map(r=>{
+      const ids = r.items.filter(it=>it[0]!=="matieres_grasses").map(it=>it[0]+"|"+it[1]);
+      const have = ids.filter(k=>cur.fridge[k]).length;
+      return {r, have, need:ids.length, missing:ids.filter(k=>!cur.fridge[k])};
+    }).filter(s=>s.have>0).sort((a,b)=>(b.have/b.need)-(a.have/a.need)||b.have-a.have).slice(0,6);
+    html += `<div class="card"><h2>${IC.recipes} Suggestions — ${MEAL_DEFS[slot].nom.toLowerCase()}</h2>`;
+    if(!scored.length) html += `<p class="muted">Aucune recette de la base ne correspond. Essaie d'autres ingrédients, ou lance la recherche en ligne ci-dessous.</p>`;
+    scored.forEach(s=>{
+      const t2 = mealTotals(s.r.items);
+      const newDay = {k: tot.k-slotTot.k+t2.k, p: tot.p-slotTot.p+t2.p};
+      const missNames = s.missing.map(k=>{const [c,i]=k.split("|");const f=findFood(c,i);return f?f.nom:i;});
+      html += `<div class="recipe-card">
+        <div class="row" style="justify-content:space-between"><b>${esc(s.r.nom)}</b><span class="badge gold">${Math.round(t2.k)} kcal · ${t2.p.toFixed(0)} g prot.</span></div>
+        <p class="muted" style="margin-top:5px">Tu as ${s.have}/${s.need} ingrédients${missNames.length?` · il manque : ${esc(missNames.join(", "))}`:" — tout est là !"}</p>
+        ${ph?`<p class="muted" style="margin-top:5px">Journée si appliqué : ${Math.round(newDay.k)} kcal / ${Math.round(newDay.p)} g ${statusBadge(newDay,ph)}</p>`:""}
+        <button class="btn small primary" style="margin-top:8px" onclick="applyIdee(${slot},'${s.r.id}')">Mettre au ${esc(MEAL_DEFS[slot].nom.toLowerCase())} d'aujourd'hui</button>
+      </div>`;
+    });
+    const names = sel.map(k=>{const [c,i]=k.split("|");const f=findFood(c,i);return f?f.nom.split("(")[0].trim():"";}).filter(Boolean).slice(0,6);
+    html += `<a class="btn" style="display:inline-block;text-decoration:none;margin-top:6px" target="_blank" rel="noopener"
+      href="https://www.google.com/search?q=${encodeURIComponent("recette low FODMAP sans oignon sans ail avec "+names.join(" "))}">${IC.export} Chercher plus d'idées en ligne (low FODMAP)</a>
+    <p class="muted" style="margin-top:6px">Pour les recettes trouvées en ligne, vérifie la liste « Aliments à éviter » et ajoute les ingrédients manquants à la base pour suivre les calories.</p></div>`;
+  }
+  return html;
 }
 
 function toolRecon(){
@@ -924,9 +993,9 @@ function weightChart(entries){
   let lo = Math.floor(Math.min(...kgs))-1, hi = Math.ceil(Math.max(...kgs))+1;
   if(hi-lo<6){ const mid=(hi+lo)/2; lo=Math.floor(mid-3); hi=Math.ceil(mid+3); } // échelle minimale lisible
   const t0 = state.start ? parseISO(state.start).getTime() : parseISO(entries[0][0]).getTime();
-  const axisT0 = t0 - 2*864e5; // marge à gauche pour ne pas coller le 1er point au bord
-  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5) + 4*864e5;
-  const x = d => PL + (parseISO(d).getTime()-axisT0)/span*(W-PL-PR);
+  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5);
+  const IP = 26; // marge intérieure en pixels : le 1er point ne colle jamais l'axe
+  const x = d => PL+IP + (parseISO(d).getTime()-t0)/span*(W-PL-PR-2*IP);
   const y = kg => H-PB - (kg-lo)/(hi-lo)*(H-PT-PB);
   let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:480px">`;
   const step = Math.max(1, Math.round((hi-lo)/5));
@@ -934,7 +1003,7 @@ function weightChart(entries){
     g += `<line x1="${PL}" y1="${y(k)}" x2="${W-PR}" y2="${y(k)}" stroke="rgba(212,175,55,.14)"/><text x="${PL-8}" y="${y(k)+4}" font-size="10" fill="#9b9484" text-anchor="end">${k}</text>`;
   }
   for(let w=0;w<=16;w+=4){
-    const xx = PL + (t0 + w*7*864e5 - axisT0)/span*(W-PL-PR);
+    const xx = PL+IP + (w*7*864e5)/span*(W-PL-PR-2*IP);
     g += `<line x1="${xx}" y1="${PT}" x2="${xx}" y2="${H-PB}" stroke="rgba(212,175,55,.08)"/><text x="${xx}" y="${H-10}" font-size="10" fill="#9b9484" text-anchor="middle">S${w}</text>`;
   }
   const pts = entries.map(([d,kg])=>`${x(d).toFixed(1)},${y(kg).toFixed(1)}`).join(" ");
