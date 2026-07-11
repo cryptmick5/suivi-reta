@@ -343,9 +343,44 @@ function phaseOf(dateISO){
   if(w===null || w<1 || w>16) return null;
   return PHASES[Math.min(3, Math.ceil(w/4)-1)];
 }
-function baseDayMenu(dateISO){
-  const wd = weekdayIdx(dateISO);
+function templateDayMenu(wd){
   return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,items:BASE_MENU[wd][i].map(it=>it.slice())}));
+}
+// Ajuste le menu de base aux cibles de la phase : portions de protéines (ailes, poisson, œufs…)
+// augmentées pour atteindre la cible protéines, féculents ajustés pour rester dans la fourchette kcal.
+function adjustMenuToPhase(meals, ph){
+  if(!ph) return meals;
+  const Pmid=(ph.prot[0]+ph.prot[1])/2, Kmid=(ph.kcal[0]+ph.kcal[1])/2;
+  for(let iter=0;iter<4;iter++){
+    let tot=dayTotals(meals);
+    const protItems=[]; meals.forEach(m=>m.items.forEach(it=>{ if(it[0]==="proteines") protItems.push(it); }));
+    const pProt=protItems.reduce((s,it)=>s+protOf(it),0);
+    if(pProt>0 && Math.abs(Pmid-tot.p)>1){
+      const f=1+(Pmid-tot.p)/pProt;
+      protItems.forEach(it=>{ it[2]=Math.max(30, Math.round(it[2]*f/5)*5); });
+    }
+    tot=dayTotals(meals);
+    const fecItems=[]; meals.forEach(m=>m.items.forEach(it=>{ if(it[0]==="feculents") fecItems.push(it); }));
+    const kFec=fecItems.reduce((s,it)=>s+kcalOf(it),0);
+    if(kFec>0 && Math.abs(Kmid-tot.k)>10){
+      const f2=1+(Kmid-tot.k)/kFec;
+      fecItems.forEach(it=>{ it[2]=Math.max(15, Math.round(it[2]*f2/5)*5); });
+    }
+  }
+  // Passe finale : si encore hors fourchette kcal (féculents au minimum), ajuster les fruits
+  let tot=dayTotals(meals);
+  if(tot.k<ph.kcal[0] || tot.k>ph.kcal[1]){
+    const fruitItems=[]; meals.forEach(m=>m.items.forEach(it=>{ if(it[0]==="fruits") fruitItems.push(it); }));
+    const kFruit=fruitItems.reduce((s,it)=>s+kcalOf(it),0);
+    if(kFruit>0){
+      const f3=1+(Kmid-tot.k)/kFruit;
+      fruitItems.forEach(it=>{ it[2]=Math.max(40, Math.round(it[2]*f3/5)*5); });
+    }
+  }
+  return meals;
+}
+function baseDayMenu(dateISO){
+  return adjustMenuToPhase(templateDayMenu(weekdayIdx(dateISO)), phaseOf(dateISO));
 }
 function menuFor(dateISO){
   if(state.menus[dateISO]) return state.menus[dateISO];
@@ -356,9 +391,19 @@ function ensureOverride(dateISO){
   return state.menus[dateISO];
 }
 function rangeBadge(val,[lo,hi],unit){
-  if(val < lo) return `<span class="badge warn">${Math.round(val)} ${unit} · sous cible (${lo}-${hi})</span>`;
-  if(val > hi) return `<span class="badge bad">${Math.round(val)} ${unit} · au-dessus (${lo}-${hi})</span>`;
+  if(val < lo) return `<span class="badge warn">${Math.round(val)} ${unit} · manque ${Math.round(lo-val)} (cible ${lo}-${hi})</span>`;
+  if(val > hi) return `<span class="badge bad">${Math.round(val)} ${unit} · ${Math.round(val-hi)} de trop (cible ${lo}-${hi})</span>`;
   return `<span class="badge ok">${Math.round(val)} ${unit} ✓ (${lo}-${hi})</span>`;
+}
+// Badge synthétique : ✓ si tout est dans la cible, sinon indique quoi et de combien
+function statusBadge(t, ph){
+  const dk = t.k<ph.kcal[0] ? t.k-ph.kcal[0] : (t.k>ph.kcal[1] ? t.k-ph.kcal[1] : 0);
+  const dp = t.p<ph.prot[0] ? t.p-ph.prot[0] : (t.p>ph.prot[1] ? t.p-ph.prot[1] : 0);
+  if(!dk && !dp) return `<span class="badge ok">✓ dans la cible</span>`;
+  const parts = [];
+  if(dk) parts.push((dk>0?"+":"−")+Math.abs(Math.round(dk))+" kcal");
+  if(dp) parts.push((dp>0?"+":"−")+Math.abs(Math.round(dp))+" g prot.");
+  return `<span class="badge ${dk>0||dp>0?"bad":"warn"}">${parts.join(" · ")}</span>`;
 }
 //<DOM>
 /* ================= ICÔNES SVG ================= */
@@ -434,6 +479,7 @@ function renderDay(){
     <div><div class="muted">Protéines du jour</div><div class="big">${Math.round(tot.p)} g</div>${ph?rangeBadge(tot.p,ph.prot,"g"):""}</div>
   </div>`;
   if(!ph) html += `<div class="card muted">Cette date est hors des 16 semaines du protocole — pas de cible définie.</div>`;
+  else if(!isCustom) html += `<div class="card muted" style="padding:10px 14px">Menu de base ajusté automatiquement aux cibles du mois ${ph.mois} (${ph.kcal[0]}-${ph.kcal[1]} kcal · ${ph.prot[0]}-${ph.prot[1]} g prot.) : portions de protéines et féculents adaptées.</div>`;
 
   meals.forEach((m,mi)=>{
     const t = mealTotals(m.items);
@@ -544,11 +590,7 @@ function renderWeek(){
     const t = dayTotals(menuFor(d));
     wk+=t.k; wp+=t.p;
     const ph = phaseOf(d);
-    let badge = "";
-    if(ph){
-      const inK = t.k>=ph.kcal[0]&&t.k<=ph.kcal[1], inP = t.p>=ph.prot[0]&&t.p<=ph.prot[1];
-      badge = inK&&inP ? `<span class="badge ok">✓</span>` : `<span class="badge warn">hors cible</span>`;
-    }
+    const badge = ph ? statusBadge(t, ph) : "";
     html += `<div class="dayline" onclick="cur.date='${d}';go('jour')">
       <div><b style="text-transform:capitalize">${parseISO(d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</b>
       ${state.menus[d]?'<span class="badge gold">modifié</span>':''}
@@ -864,7 +906,8 @@ function renderPoids(){
         <td><button class="xbtn" onclick="delWeight('${d}')">✕</button></td></tr>`;
     });
     const first=entries[0][1], last=entries[entries.length-1][1];
-    html += `</table><p style="margin-top:8px"><b>Total : ${(last-first>0?"+":"")+(last-first).toFixed(1)} kg</b> depuis le ${parseISO(entries[0][0]).toLocaleDateString("fr-FR")}</p></div>`;
+    html += `</table><p style="margin-top:8px"><b>Total : ${(last-first>0?"+":"")+(last-first).toFixed(1)} kg</b> depuis le ${parseISO(entries[0][0]).toLocaleDateString("fr-FR")}</p>
+    ${!state.start?`<p class="muted" style="margin-top:6px">La colonne « Semaine » affichera S1-S16 dès que la date de début du protocole sera définie (bouton Réglages en haut).</p>`:""}</div>`;
     html += `<button class="btn" onclick="exportWeightCSV()">${IC.export} Exporter le poids (CSV)</button>`;
   } else html += `<div class="card muted">Aucune pesée enregistrée pour l'instant.</div>`;
   $("#app").innerHTML = html;
@@ -876,24 +919,33 @@ function addWeight(){
 }
 function delWeight(d){ delete state.weights[d]; save(); render(); }
 function weightChart(entries){
-  const W=680,H=220,P=34;
+  const W=680,H=230,PL=46,PR=20,PT=24,PB=34;
   const kgs = entries.map(e=>e[1]);
-  const lo = Math.floor(Math.min(...kgs))-1, hi = Math.ceil(Math.max(...kgs))+1;
+  let lo = Math.floor(Math.min(...kgs))-1, hi = Math.ceil(Math.max(...kgs))+1;
+  if(hi-lo<6){ const mid=(hi+lo)/2; lo=Math.floor(mid-3); hi=Math.ceil(mid+3); } // échelle minimale lisible
   const t0 = state.start ? parseISO(state.start).getTime() : parseISO(entries[0][0]).getTime();
-  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5);
-  const x = d => P + (parseISO(d).getTime()-t0)/span*(W-2*P);
-  const y = kg => H-P - (kg-lo)/(hi-lo)*(H-2*P);
+  const axisT0 = t0 - 2*864e5; // marge à gauche pour ne pas coller le 1er point au bord
+  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5) + 4*864e5;
+  const x = d => PL + (parseISO(d).getTime()-axisT0)/span*(W-PL-PR);
+  const y = kg => H-PB - (kg-lo)/(hi-lo)*(H-PT-PB);
   let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:480px">`;
-  for(let k=lo;k<=hi;k+=Math.max(1,Math.round((hi-lo)/5))){
-    g += `<line x1="${P}" y1="${y(k)}" x2="${W-P}" y2="${y(k)}" stroke="rgba(212,175,55,.14)"/><text x="4" y="${y(k)+4}" font-size="10" fill="#9b9484">${k}</text>`;
+  const step = Math.max(1, Math.round((hi-lo)/5));
+  for(let k=lo;k<=hi;k+=step){
+    g += `<line x1="${PL}" y1="${y(k)}" x2="${W-PR}" y2="${y(k)}" stroke="rgba(212,175,55,.14)"/><text x="${PL-8}" y="${y(k)+4}" font-size="10" fill="#9b9484" text-anchor="end">${k}</text>`;
   }
   for(let w=0;w<=16;w+=4){
-    const xx = P + (w*7*864e5)/span*(W-2*P);
-    g += `<line x1="${xx}" y1="${P/2}" x2="${xx}" y2="${H-P}" stroke="rgba(212,175,55,.08)"/><text x="${xx-8}" y="${H-8}" font-size="10" fill="#9b9484">S${w}</text>`;
+    const xx = PL + (t0 + w*7*864e5 - axisT0)/span*(W-PL-PR);
+    g += `<line x1="${xx}" y1="${PT}" x2="${xx}" y2="${H-PB}" stroke="rgba(212,175,55,.08)"/><text x="${xx}" y="${H-10}" font-size="10" fill="#9b9484" text-anchor="middle">S${w}</text>`;
   }
   const pts = entries.map(([d,kg])=>`${x(d).toFixed(1)},${y(kg).toFixed(1)}`).join(" ");
-  g += `<polyline points="${pts}" fill="none" stroke="#d4af37" stroke-width="2.5"/>`;
-  entries.forEach(([d,kg])=>{ g += `<circle cx="${x(d)}" cy="${y(kg)}" r="4" fill="#d4af37"/><text x="${x(d)-10}" y="${y(kg)-8}" font-size="10" fill="#e8e2d4">${kg.toFixed(1)}</text>`; });
+  if(entries.length>1) g += `<polyline points="${pts}" fill="none" stroke="#d4af37" stroke-width="2.5"/>`;
+  entries.forEach(([d,kg],i)=>{
+    const px=x(d), py=y(kg);
+    g += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#d4af37"/>`;
+    const anchor = px > W-70 ? "end" : "start";
+    const tx = anchor==="end" ? px-7 : px+7;
+    g += `<text x="${tx.toFixed(1)}" y="${(py-8).toFixed(1)}" font-size="10" fill="#e8e2d4" text-anchor="${anchor}">${kg.toFixed(1)}</text>`;
+  });
   return g+`</svg>`;
 }
 
