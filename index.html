@@ -374,8 +374,24 @@ function phaseOf(dateISO){
   if(w===null || w<1 || w>16) return null;
   return PHASES[Math.min(3, Math.ceil(w/4)-1)];
 }
+// Noms des plats du menu de base (7 jours × 5 repas) — pour savoir ce qu'on remplace
+const BASE_NAMES = [
+ ["Œufs & tartine, kiwi","Yaourt & fraises","Ailes de poulet rôties, riz & courgettes","Orange fraîche","Cabillaud vapeur, pommes de terre & épinards"],
+ ["Porridge au kiwi","Cheddar & raisin","Dinde poêlée, quinoa & poivrons","Kiwi frais","Omelette complète, pommes de terre & carottes"],
+ ["Œufs & tartine, fraises","Yaourt & myrtilles","Bœuf sauté, riz & haricots verts","Orange fraîche","Saumon au four, pommes de terre & épinards"],
+ ["Porridge au kiwi","Cheddar & ananas","Ailes de poulet grillées, quinoa & courgettes","Raisin frais","Wok de crevettes, riz & carottes"],
+ ["Œufs & tartine, orange","Yaourt & raisin","Dinde rôtie, pommes de terre & poivrons","Fraises fraîches","Cabillaud, riz & épinards"],
+ ["Porridge aux myrtilles","Cheddar & kiwi","Bœuf sauté, quinoa & haricots verts","Ananas frais","Omelette complète, pommes de terre & carottes"],
+ ["Œufs & tartine, ananas","Yaourt & fraises","Saumon grillé, riz & courgettes","Orange fraîche","Ailes de poulet, pommes de terre & épinards"]
+];
 function templateDayMenu(wd){
-  return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,items:BASE_MENU[wd][i].map(it=>it.slice())}));
+  return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,nomBase:BASE_NAMES[wd][i],items:BASE_MENU[wd][i].map(it=>it.slice())}));
+}
+// Retrouve une recette dont les ingrédients correspondent exactement (pour les anciens menus sans nom)
+function matchRecipeName(meal){
+  const key = meal.items.map(it=>it[0]+"|"+it[1]).sort().join(",");
+  const r = allRecipes(meal.type).find(r=>r.items.map(it=>it[0]+"|"+it[1]).sort().join(",")===key);
+  return r ? r.nom : null;
 }
 // Ajuste le menu de base aux cibles de la phase : portions de protéines (ailes, poisson, œufs…)
 // augmentées pour atteindre la cible protéines, féculents ajustés pour rester dans la fourchette kcal.
@@ -563,9 +579,10 @@ function renderDay(){
     const t = mealTotals(m.items);
     const recs = allRecipes(m.type);
     const rec = m.recipeId ? findRecipe(m.recipeId) : null;
+    const dispName = rec ? rec.nom : (m.nomBase || matchRecipeName(m) || "Assiette personnalisée");
     html += `<div class="meal">
       <div class="meal-head">
-        <div><b>${m.nom}</b>${rec?` <span class="badge gold">${esc(rec.nom)}</span>`:""}<div class="tot">${Math.round(t.k)} kcal · ${t.p.toFixed(1)} g prot.</div></div>
+        <div><b>${m.nom}</b> <span class="badge gold">${esc(dispName)}${m.mod?" · modifiée":""}</span><div class="tot">${Math.round(t.k)} kcal · ${t.p.toFixed(1)} g prot.</div></div>
         <select onchange="applyRecipe(${mi},this.value)">
           <option value="">Changer la recette…</option>
           <option value="__base">Menu de base du jour</option>
@@ -620,16 +637,19 @@ function swapFood(mi,ii,newId){
   const nf = findFood(it[0], newId);
   it[1] = newId;
   it[2] = swapWeight(oldK, nf); // conserve les kcal du repas
+  meals[mi].mod = true;
   save(); render();
 }
 function setG(mi,ii,v){
   const meals = ensureOverride(cur.date);
   meals[mi].items[ii][2] = Math.max(1, Number(v)||1);
+  meals[mi].mod = true;
   save(); render();
 }
 function delItem(mi,ii){
   const meals = ensureOverride(cur.date);
   meals[mi].items.splice(ii,1);
+  meals[mi].mod = true;
   save(); render();
 }
 function addItem(mi){
@@ -638,6 +658,7 @@ function addItem(mi){
   const f = allFoods(cat)[0];
   if(!f){ alert("Aucun aliment dans cette catégorie."); return; }
   meals[mi].items.push([cat, f.id, 100]);
+  meals[mi].mod = true;
   save(); render();
 }
 function applyRecipe(mi,val){
@@ -650,6 +671,7 @@ function applyRecipe(mi,val){
     const r = findRecipe(val);
     meals[mi].recipeId = r.id;
     meals[mi].items = r.items.map(it=>it.slice());
+    meals[mi].mod = false;
   }
   save(); render();
 }
