@@ -8,7 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Suivi Rétatrutide + SIBO/IMO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23F6D56A'/%3E%3Cstop offset='1' stop-color='%23C08F14'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='%230B0B0E'/%3E%3Cpath d='M78.5 61.5 A31 31 0 1 1 62 24.5' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linecap='round'/%3E%3Cpath d='M38 68 V35 H51 A9.5 9.5 0 0 1 51 54 H38 M47 54 L58 68' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M32 74 L44 62 L54 71 L70 49' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M78 38 L61 42 L71 55 Z' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>RETA – Suivi & Performance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -120,7 +122,19 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 <body>
 <div id="warnBanner">⚠ Le rétatrutide est un composé de recherche (research use only), sans posologie approuvée. Ce plan — doses et alimentation — est indicatif : un suivi médical est indispensable, y compris pour le SIBO/IMO. Ne remplace pas un avis médical.</div>
 <header>
-  <div><h1>SUIVI RÉTATRUTIDE + SIBO/IMO</h1><div class="sub" id="headSub"></div></div>
+  <div style="display:flex;align-items:center;gap:11px">
+    <svg viewBox="0 0 100 100" width="40" height="40" style="flex:none" aria-label="RETA">
+      <defs><linearGradient id="lgm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6D56A"/><stop offset="1" stop-color="#C08F14"/></linearGradient></defs>
+      <path d="M78.5 61.5 A31 31 0 1 1 62 24.5" fill="none" stroke="url(#lgm)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M38 68 V35 H51 A9.5 9.5 0 0 1 51 54 H38 M47 54 L58 68" fill="none" stroke="url(#lgm)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M32 74 L44 62 L54 71 L70 49" fill="none" stroke="url(#lgm)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M78 38 L61 42 L71 55 Z" fill="url(#lgm)"/>
+    </svg>
+    <div>
+      <h1 style="color:var(--ink);letter-spacing:.14em">RETA <span style="color:var(--gold);font-size:10px;letter-spacing:.22em;vertical-align:2px">— SUIVI &amp; PERFORMANCE —</span></h1>
+      <div class="sub" id="headSub"></div>
+    </div>
+  </div>
   <button class="btn small" onclick="openSettings()" id="setBtn"></button>
 </header>
 <main id="app"></main>

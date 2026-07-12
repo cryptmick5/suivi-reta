@@ -1,6 +1,6 @@
 ﻿{
-  "name": "Suivi Rétatrutide + SIBO/IMO",
-  "short_name": "Suivi Réta",
+  "name": "RETA – Suivi & Performance",
+  "short_name": "RETA",
   "description": "Suivi du protocole rétatrutide 16 semaines, menus low FODMAP, poids et injections.",
   "start_url": "./",
   "scope": "./",
@@ -14,3 +14,4 @@
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
+
