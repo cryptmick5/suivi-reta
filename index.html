@@ -384,15 +384,53 @@ const BASE_NAMES = [
  ["Porridge aux myrtilles","Cheddar & kiwi","Bœuf sauté, quinoa & haricots verts","Ananas frais","Omelette complète, pommes de terre & carottes"],
  ["Œufs & tartine, ananas","Yaourt & fraises","Saumon grillé, riz & courgettes","Orange fraîche","Ailes de poulet, pommes de terre & épinards"]
 ];
+// Méthodes de préparation des plats du menu de base (7 jours × 5 repas)
+const BASE_INSTR = [
+ ["Cuire les œufs au plat ou brouillés. Griller le pain sans gluten. Servir avec le kiwi en tranches.",
+  "Couper les fraises, les mélanger au yaourt sans lactose bien frais.",
+  "Rôtir les ailes au four 35-40 min à 200 °C (la peau apporte le gras : très peu d'huile). Cuire le riz. Poêler les courgettes au basilic.",
+  "Peler l'orange, servir en quartiers bien frais.",
+  "Cabillaud vapeur 8-10 min avec du citron. Pommes de terre à l'eau, épinards tombés à la poêle avec l'huile."],
+ ["Cuire les flocons d'avoine 3-4 min dans 150 ml d'eau. Hors du feu, incorporer le yaourt, puis le kiwi en dés.",
+  "Cheddar en dés, raisin lavé — c'est prêt.",
+  "Poêler la dinde en aiguillettes. Quinoa 12 min à l'eau. Poivrons revenus avec un peu de paprika doux.",
+  "Peler le kiwi, couper en rondelles.",
+  "Omelette aux herbes (ciboulette, partie verte uniquement). Pommes de terre rissolées, carottes vapeur."],
+ ["Œufs au plat ou brouillés, pain grillé, fraises en accompagnement.",
+  "Verser les myrtilles dans le yaourt, mélanger.",
+  "Saisir le bœuf en lamelles 2-3 min à feu vif. Riz et haricots verts vapeur, filet d'huile au moment de servir.",
+  "Peler l'orange, servir en quartiers bien frais.",
+  "Saumon 12-15 min au four à 180 °C avec citron et aneth. Pommes de terre vapeur, épinards poêlés."],
+ ["Cuire les flocons d'avoine 3-4 min dans 150 ml d'eau. Hors du feu, incorporer le yaourt, puis le kiwi en dés.",
+  "Ananas frais en morceaux, cheddar en copeaux.",
+  "Griller les ailes au four 25-30 min en retournant à mi-cuisson, herbes de Provence. Quinoa nature, courgettes rôties.",
+  "Laver le raisin, servir frais.",
+  "Sauter les crevettes au wok avec du gingembre frais. Carottes en julienne, servir sur le riz."],
+ ["Œufs cuits à ta façon, pain grillé, quartiers d'orange.",
+  "Grains de raisin dans le yaourt, c'est tout.",
+  "Rôtir dinde, pommes de terre et poivrons ensemble 30 min à 190 °C avec thym et huile d'olive.",
+  "Équeuter les fraises, servir nature.",
+  "Cabillaud vapeur ou poêlé au citron. Riz nature, épinards tombés à l'huile d'olive."],
+ ["Avoine cuite 3-4 min dans l'eau, yaourt incorporé hors du feu, myrtilles par-dessus.",
+  "Kiwi en rondelles, cheddar en dés.",
+  "Bœuf saisi à feu vif 2-3 min, quinoa 12 min, haricots verts vapeur, filet d'huile.",
+  "Ananas en dés, bien frais.",
+  "Omelette aux herbes (ciboulette, partie verte uniquement). Pommes de terre rissolées, carottes vapeur."],
+ ["Œufs cuits à ta façon, pain grillé, ananas en dés.",
+  "Couper les fraises, les mélanger au yaourt sans lactose bien frais.",
+  "Saumon grillé côté peau 5-6 min. Riz nature, courgettes poêlées.",
+  "Peler l'orange, servir en quartiers bien frais.",
+  "Ailes rôties 35-40 min à 200 °C. Pommes de terre vapeur, épinards tombés à la poêle."]
+];
 function templateDayMenu(wd){
-  return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,nomBase:BASE_NAMES[wd][i],items:BASE_MENU[wd][i].map(it=>it.slice())}));
+  return MEAL_DEFS.map((md,i)=>({nom:md.nom,type:md.type,recipeId:null,nomBase:BASE_NAMES[wd][i],instrBase:BASE_INSTR[wd][i],items:BASE_MENU[wd][i].map(it=>it.slice())}));
 }
 // Retrouve une recette dont les ingrédients correspondent exactement (pour les anciens menus sans nom)
-function matchRecipeName(meal){
+function matchRecipe(meal){
   const key = meal.items.map(it=>it[0]+"|"+it[1]).sort().join(",");
-  const r = allRecipes(meal.type).find(r=>r.items.map(it=>it[0]+"|"+it[1]).sort().join(",")===key);
-  return r ? r.nom : null;
+  return allRecipes(meal.type).find(r=>r.items.map(it=>it[0]+"|"+it[1]).sort().join(",")===key) || null;
 }
+function matchRecipeName(meal){ const r = matchRecipe(meal); return r ? r.nom : null; }
 // Ajuste le menu de base aux cibles de la phase : portions de protéines (ailes, poisson, œufs…)
 // augmentées pour atteindre la cible protéines, féculents ajustés pour rester dans la fourchette kcal.
 function adjustMenuToPhase(meals, ph){
@@ -579,7 +617,9 @@ function renderDay(){
     const t = mealTotals(m.items);
     const recs = allRecipes(m.type);
     const rec = m.recipeId ? findRecipe(m.recipeId) : null;
-    const dispName = rec ? rec.nom : (m.nomBase || matchRecipeName(m) || "Assiette personnalisée");
+    const matched = rec ? null : matchRecipe(m);
+    const dispName = rec ? rec.nom : (m.nomBase || (matched&&matched.nom) || "Assiette personnalisée");
+    const instrText = rec ? rec.instr : (m.instrBase || (matched&&matched.instr) || null);
     html += `<div class="meal">
       <div class="meal-head">
         <div><b>${m.nom}</b> <span class="badge gold">${esc(dispName)}${m.mod?" · modifiée":""}</span><div class="tot">${Math.round(t.k)} kcal · ${t.p.toFixed(1)} g prot.</div></div>
@@ -604,7 +644,7 @@ function renderDay(){
       <select id="addCat${mi}">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
       <button class="btn small" onclick="addItem(${mi})">+ Ajouter un aliment</button>
     </div>`;
-    if(rec) html += `<div class="recipe-instr">${IC.chef} <b>Préparation :</b> ${esc(rec.instr)}</div>`;
+    if(instrText) html += `<div class="recipe-instr">${IC.chef} <b>Préparation :</b> ${esc(instrText)}</div>`;
     html += `</div>`;
   });
   const jr = (state.journal||{})[cur.date]||{};
