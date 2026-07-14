@@ -249,42 +249,131 @@ function doseCoverageIssues(){
 // Catalogue d'aliments génériques low FODMAP — valeurs pour 100 g issues des tables de composition standards
 // [catégorie, nom, kcal/100g, prot g/100g, note portion éventuelle]
 const CATALOG = [
+ // ---- Protéines : volailles & viandes
  ["proteines","Cuisse de poulet (sans peau, crue)",120,18.5],
+ ["proteines","Magret de canard sans peau (cru)",125,23],
+ ["proteines","Lapin cru",120,21],
+ ["proteines","Escalope de veau crue",108,22],
+ ["proteines","Gigot d'agneau maigre cru",130,20],
+ ["proteines","Steak haché 5% MG cru",129,21],
+ // ---- Protéines : poissons
  ["proteines","Maquereau cru",205,19],
  ["proteines","Sole crue",86,17],
+ ["proteines","Limande crue",80,17.5],
  ["proteines","Dorade crue",100,20],
  ["proteines","Merlu cru",86,17.5],
+ ["proteines","Merlan cru",80,18],
  ["proteines","Colin / lieu cru",90,19],
- ["proteines","Steak haché 5% MG cru",129,21],
+ ["proteines","Bar / loup cru",97,19],
+ ["proteines","Flétan cru",91,18.5],
+ ["proteines","Églefin cru",74,16.5],
+ ["proteines","Perche crue",91,19],
+ ["proteines","Tilapia cru",96,20],
+ ["proteines","Sardine fraîche entière (crue)",140,20],
+ ["proteines","Anchois frais crus",131,20],
+ ["proteines","Espadon cru",121,20],
+ ["proteines","Thon frais (albacore) cru",110,24],
+ ["proteines","Saumon fumé",175,23],
+ // ---- Protéines : fruits de mer & œuf
+ ["proteines","Chair de crabe cuite",95,19],
+ ["proteines","Moules cuites",112,17],
+ ["proteines","Calamar cru",85,16],
+ ["proteines","Huîtres",70,8],
+ ["proteines","Noix de Saint-Jacques crues",88,17],
  ["proteines","Blanc d'œuf",52,11],
+ ["proteines","Jaune d'œuf",322,16],
  ["proteines","Tempeh",192,20,"portion ≤ 100 g"],
+ ["proteines","Whey protéine isolate (poudre)",370,85,"valeur type — vérifier la marque"],
+ // ---- Féculents
  ["feculents","Pâtes sans gluten cuites",131,2.5],
  ["feculents","Riz complet cuit",111,2.6],
+ ["feculents","Vermicelles de riz cuits",109,1],
+ ["feculents","Nouilles soba (100% sarrasin) cuites",99,5],
  ["feculents","Patate douce cuite",76,1.4,"portion ≤ 75 g"],
  ["feculents","Galettes de riz",387,7.5],
  ["feculents","Farine de riz",366,6],
+ ["feculents","Farine de sarrasin",340,12],
+ ["feculents","Farine de maïs",361,7],
+ ["feculents","Fécule de maïs (Maïzena)",381,0.3],
+ // ---- Légumes (low FODMAP, portions Monash le cas échéant)
  ["legumes","Aubergine cuite",35,0.8,"portion ≤ 75 g"],
  ["legumes","Endive",17,1.2],
  ["legumes","Radis",16,0.8],
  ["legumes","Potimarron cuit",30,1.1,"portion ≤ 75 g"],
+ ["legumes","Brocoli (têtes) cuit",35,2.4,"portion ≤ 75 g"],
+ ["legumes","Chou vert commun cuit",23,1.3,"portion ≤ 75 g"],
+ ["legumes","Pak choï cru",13,1.5,"portion ≤ 75 g"],
+ ["legumes","Mâche",21,2],
+ ["legumes","Roquette",25,2.6],
+ ["legumes","Pousses de bambou (conserve)",19,1.8],
+ ["legumes","Tomates cerises",18,0.9,"portion ≤ 45 g"],
+ ["legumes","Navet cuit",22,0.9,"portion ≤ 75 g"],
+ ["legumes","Pousses de haricot mungo",30,3],
+ ["legumes","Vert de poireau (partie verte seule)",30,1.5],
+ ["legumes","Gingembre frais",80,1.8],
+ // ---- Fruits
  ["fruits","Jus de citron",25,0.4],
  ["fruits","Fruit de la passion",68,2.2],
  ["fruits","Rhubarbe cuite (sans sucre)",21,0.9],
+ ["fruits","Clémentine",47,0.8],
+ ["fruits","Pitaya (fruit du dragon)",60,1.2],
+ // ---- Laitier & substituts
  ["laitier","Parmesan",392,36],
  ["laitier","Feta",264,14,"portion ≤ 40 g"],
  ["laitier","Brie",334,21,"portion ≤ 40 g"],
+ ["laitier","Camembert",300,20,"portion ≤ 40 g"],
+ ["laitier","Emmental",380,28],
+ ["laitier","Comté",415,27],
+ ["laitier","Gruyère",413,29],
+ ["laitier","Gouda",356,25],
+ ["laitier","Chèvre (bûche)",300,19,"portion ≤ 40 g"],
  ["laitier","Lait sans lactose",42,3.3],
  ["laitier","Yaourt grec sans lactose",95,9],
+ ["laitier","Lait de coco (conserve)",197,2,"portion ≤ 60 ml"],
+ ["laitier","Lait d'amande",24,0.5],
+ ["laitier","Lait de riz",47,0.3,"portion ≤ 200 ml"],
+ // ---- Matières grasses, oléagineux & plaisirs
  ["matieres_grasses","Beurre",717,0.9],
  ["matieres_grasses","Huile de coco",892,0],
+ ["matieres_grasses","Huile de colza",884,0],
+ ["matieres_grasses","Huile de sésame",884,0],
  ["matieres_grasses","Graines de courge",559,30,"portion ≤ 23 g"],
- ["matieres_grasses","Noix (cerneaux)",654,15,"portion ≤ 30 g"],
- ["matieres_grasses","Amandes",579,21,"portion ≤ 12 g"],
+ ["matieres_grasses","Graines de sésame",573,18,"portion ≤ 11 g"],
+ ["matieres_grasses","Graines de lin",534,18,"portion ≤ 15 g"],
  ["matieres_grasses","Graines de chia",486,17,"portion ≤ 24 g"],
+ ["matieres_grasses","Noix (cerneaux)",654,15,"portion ≤ 30 g"],
+ ["matieres_grasses","Noisettes",628,15,"portion ≤ 15 g"],
+ ["matieres_grasses","Noix de pécan",691,9,"portion ≤ 20 g"],
+ ["matieres_grasses","Pignons de pin",673,14,"portion ≤ 14 g"],
+ ["matieres_grasses","Noix de macadamia",718,8,"portion ≤ 20 g"],
+ ["matieres_grasses","Noix du Brésil",659,14,"portion ≤ 40 g"],
+ ["matieres_grasses","Noix de coco râpée",660,6,"portion ≤ 18 g"],
+ ["matieres_grasses","Amandes",579,21,"portion ≤ 12 g"],
  ["matieres_grasses","Beurre de cacahuète",588,25,"portion ≤ 32 g"],
  ["matieres_grasses","Cacahuètes",567,26,"portion ≤ 28 g"],
- ["matieres_grasses","Olives vertes",145,1]
+ ["matieres_grasses","Olives vertes",145,1],
+ ["matieres_grasses","Chocolat noir 70 %",546,8,"portion ≤ 30 g"]
 ];
+// Import d'un aliment au format structuré (assistant Perplexity)
+function parseAlimentImport(text){
+  const out={errors:[]};
+  String(text).split(/\r?\n/).forEach(line=>{
+    const l=line.replace(/^[-*\s]+/,"").trim(); if(!l) return;
+    const m=l.match(/^([A-Za-z]+)\s*:\s*(.+)$/); if(!m) return;
+    const key=normName(m[1]).toUpperCase(); const val=m[2].trim();
+    if(key==="ALIMENT"){
+      const p=val.split("|").map(s=>s.trim());
+      if(p.length<4){ out.errors.push("Ligne ALIMENT incomplète"); return; }
+      out.cat=normCat(p[0]); out.nom=p[1];
+      out.kcal=parseFloat(String(p[2]).replace(",",".")); out.prot=parseFloat(String(p[3]).replace(",","."));
+      if(!out.cat) out.errors.push("Catégorie inconnue : "+p[0]);
+      if(!(out.kcal>0)||isNaN(out.prot)) out.errors.push("Valeurs kcal/protéines illisibles");
+    }
+    else if(key==="FODMAP") out.fodmap=val;
+  });
+  if(!out.nom) out.errors.push("Aucune ligne ALIMENT trouvée");
+  return out;
+}
 // Mots-clés autonomes d'une recette : générés depuis le nom + les ingrédients
 const TAG_STOP = ["cuit","cuite","cuits","cuites","crue","cru","crus","sans","avec","frais","fraiche","nature","blanc","blanche","pour"];
 function genTags(nom, rows){
@@ -1392,7 +1481,7 @@ function nfSearch(q){
   const hits = CATALOG.map((c,i)=>({c,i})).filter(x=>normName(x.c[1]).includes(q)).slice(0,8);
   el.innerHTML = hits.length
     ? hits.map(x=>`<button class="chip" onclick="nfPick(${x.i})">${esc(x.c[1])} · ${x.c[2]} kcal · ${x.c[3]} g prot.${x.c[4]?" · "+esc(x.c[4]):""}</button>`).join("")
-    : `<p class="muted" style="margin:4px 0">Pas dans le catalogue — utilise OpenFoodFacts ou Perplexity ci-dessous.</p>`;
+    : `<p class="muted" style="margin:4px 0">Pas dans le catalogue — utilise l'assistant Perplexity ci-dessous (coller &amp; importer).</p>`;
 }
 function nfPick(i){
   const c = CATALOG[i]; if(!c) return;
@@ -1403,25 +1492,33 @@ function nfPick(i){
   $("#nf_results").innerHTML = ""; $("#nf_search").value = "";
   toast("Valeurs du catalogue appliquées — clique Ajouter");
 }
-// Valeurs nutritionnelles automatiques (OpenFoodFacts)
-async function fetchFoodInfo(){
-  const nom = $("#nf_nom").value.trim();
-  if(!nom){ alert("Saisis d'abord le nom de l'aliment."); return; }
-  toast("Recherche des valeurs…");
-  try{
-    const r = await fetch("https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=10&fields=product_name,nutriments&search_terms="+encodeURIComponent(nom));
-    const j = await r.json();
-    const prod = (j.products||[]).find(p=>p.nutriments && p.nutriments["energy-kcal_100g"]>0 && p.nutriments["proteins_100g"]!=null);
-    if(!prod){ toast("Introuvable sur OpenFoodFacts — essaie le bouton Perplexity"); return; }
-    $("#nf_kcal").value = Math.round(prod.nutriments["energy-kcal_100g"]);
-    $("#nf_prot").value = (+prod.nutriments["proteins_100g"]).toFixed(1);
-    toast("Valeurs trouvées : "+(prod.product_name||nom));
-  }catch(e){ toast("Recherche indisponible (hors ligne ?) — essaie Perplexity"); }
-}
+// Assistant Perplexity pour un nouvel aliment : demande formatée + coller-importer en un geste
 function openPerplexityAliment(){
-  const nom = $("#nf_nom").value.trim() || "l'aliment";
-  const q = `Valeurs nutritionnelles pour 100 g de ${nom} (cru sauf mention contraire) : donne uniquement deux lignes au format KCAL: nombre et PROTEINES: nombre en grammes. Indique aussi si cet aliment est compatible low FODMAP.`;
+  const nom = ($("#nf_nom").value.trim() || $("#nf_search").value.trim() || "NOM DE L'ALIMENT");
+  const q = `Valeurs nutritionnelles moyennes pour 100 g de ${nom} (cru, sauf mention contraire). Réponds STRICTEMENT en 2 lignes, sans aucun autre texte :
+ALIMENT: catégorie | ${nom} | kcal pour 100g | protéines en g pour 100g
+FODMAP: low, modérée ou haute — avec la portion maximale low FODMAP si connue
+(catégorie parmi : proteines, feculents, legumes, fruits, laitier, matieres_grasses ; valeurs des tables de composition alimentaire)`;
   window.open("https://www.perplexity.ai/search?q="+encodeURIComponent(q), "_blank");
+}
+async function pasteAndImportAliment(){
+  let txt = "";
+  try{ txt = await navigator.clipboard.readText(); }
+  catch(e){ alert("Accès au presse-papiers refusé — saisis les valeurs manuellement."); return; }
+  if(!txt.trim()){ toast("Presse-papiers vide"); return; }
+  const p = parseAlimentImport(txt);
+  if(p.errors.length && !p.nom){ alert("Format non reconnu :\n"+p.errors.join("\n")); return; }
+  if(BANNED_FOODS.some(b=>normName(p.nom).includes(b))){ alert("Cet aliment fait partie des exclusions (banane, porc, papaye)."); return; }
+  const fodmapTxt = p.fodmap ? normName(p.fodmap) : "";
+  if(fodmapTxt.includes("haute") || fodmapTxt.includes("high")){
+    if(!confirm("Perplexity indique : FODMAP "+p.fodmap+"\nDéconseillé en phase active SIBO/IMO. Ajouter quand même ?")) return;
+  }
+  if(p.cat) $("#nf_cat").value = p.cat;
+  $("#nf_nom").value = p.nom + (p.fodmap && !fodmapTxt.startsWith("low") ? " (FODMAP : "+p.fodmap+")" : "");
+  if(p.kcal>0) $("#nf_kcal").value = Math.round(p.kcal);
+  if(!isNaN(p.prot)) $("#nf_prot").value = Math.round(p.prot*10)/10;
+  toast(p.fodmap ? "Importé — FODMAP : "+p.fodmap : "Importé — vérifie puis clique Ajouter");
+  if(p.errors.length) alert("Import partiel :\n"+p.errors.join("\n"));
 }
 
 /* ---------- Vue Poids ---------- */
@@ -1505,17 +1602,17 @@ function renderAliments(){
   });
   html += `<div class="card"><h2>${IC.foods} Ajouter un aliment</h2>
     <div class="formgrid">
-      <input type="text" id="nf_search" placeholder="Recherche rapide dans le catalogue (35 aliments low FODMAP, valeurs vérifiées)…" oninput="nfSearch(this.value)">
+      <input type="text" id="nf_search" placeholder="Recherche dans le catalogue (${CATALOG.length} aliments, valeurs vérifiées + portions FODMAP)…" oninput="nfSearch(this.value)">
       <div id="nf_results"></div>
+      <div class="note-star" style="margin:2px 0"><b>Pas dans le catalogue ?</b> 1) Demande à Perplexity (format automatique), 2) copie sa réponse, 3) « Coller &amp; importer » : catégorie, kcal, protéines et compatibilité FODMAP se remplissent seuls.</div>
+      <div class="row">
+        <button class="btn small" onclick="openPerplexityAliment()">1. Demander à Perplexity</button>
+        <button class="btn small primary" onclick="pasteAndImportAliment()">2. Coller &amp; importer</button>
+      </div>
       <select id="nf_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
       <input type="text" id="nf_nom" placeholder="Nom de l'aliment (low FODMAP de préférence)">
-      <div class="row">
-        <button class="btn small" onclick="fetchFoodInfo()">Remplir kcal/prot automatiquement</button>
-        <button class="btn small" onclick="openPerplexityAliment()">Vérifier via Perplexity</button>
-      </div>
       <div class="row"><input type="number" id="nf_kcal" step="1" min="1" placeholder="kcal/100g" style="width:110px">
       <input type="number" id="nf_prot" step="0.1" min="0" placeholder="prot g/100g" style="width:110px"></div>
-      <p class="muted">Remplissage automatique via OpenFoodFacts (nécessite internet) — vérifie la cohérence, les valeurs varient selon les produits.</p>
       <button class="btn primary" onclick="addFood()">Ajouter</button>
       <p class="muted">Vérifie que l'aliment est compatible low FODMAP avant de l'ajouter (appli Monash FODMAP en référence). Exclusions : banane, porc, papaye.</p>
     </div></div>`;
