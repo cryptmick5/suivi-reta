@@ -246,6 +246,21 @@ function doseCoverageIssues(){
   if(cursor<=protoWeeks()) issues.push(`S${cursor}-${protoWeeks()} sans palier défini (dernière dose appliquée)`);
   return issues;
 }
+// Reconstruit la chaîne des paliers : partition stricte de 1..protoWeeks, sans trou ni chevauchement.
+// Le début de chaque palier découle de la fin du précédent ; le dernier finit toujours à la dernière semaine.
+function rebuildChain(){
+  if(!Array.isArray(state.doses)||!state.doses.length) return;
+  const W = protoWeeks();
+  let ps = state.doses.filter(p=>p && +p.d>0).sort((x,y)=>x.a-y.a);
+  if(!ps.length){ delete state.doses; return; }
+  ps.forEach((p,j)=>{
+    p.a = j===0 ? 1 : ps[j-1].b+1;
+    p.b = Math.max(p.a, Math.min(W, Math.round(p.b)||p.a));
+  });
+  ps = ps.filter(p=>p.a<=W);
+  ps[ps.length-1].b = W;
+  state.doses = ps;
+}
 // Catalogue d'aliments génériques low FODMAP — valeurs pour 100 g issues des tables de composition standards
 // [catégorie, nom, kcal/100g, prot g/100g, note portion éventuelle]
 const CATALOG = [
@@ -991,23 +1006,25 @@ function copyShop(start){
 /* ---------- Vue Protocole + injections ---------- */
 function renderProto(){
   const curW = state.start ? weekNum(iso(new Date())) : null;
+  if(Array.isArray(state.doses) && state.doses.length && doseCoverageIssues().length){ rebuildChain(); save(); } // auto-réparation des anciens protocoles
   const ps = [...dosePaliers()].sort((x,y)=>x.a-y.a);
-  const issues = doseCoverageIssues();
   let conseils = "";
   if(maxDose()<=2) conseils += `<span class="badge ok">Plafond prudent : ${maxDose()} mg ✓ — accumulation naturelle (demi-vie ~5-6 j), l'effet monte sans monter la dose.</span> `;
   else if(maxDose()<=6) conseils += `<span class="badge warn">Dose max ${maxDose()} mg — au-dessus du plafond prudent de 2 mg. Progression lente impérative (+0,25 à 0,5 mg toutes les 2-4 semaines) et suivi médical renforcé.</span> `;
   else conseils += `<span class="badge bad">Dose max ${maxDose()} mg — dépasse le palier maximal du protocole de référence (6 mg). Fortement déconseillé.</span> `;
   for(let i=1;i<ps.length;i++){ if(ps[i].d > 2*ps[i-1].d) conseils += `<span class="badge warn">Montée rapide à S${ps[i].a} (${ps[i-1].d} → ${ps[i].d} mg) : la référence recommande de ne jamais plus que doubler.</span> `; }
-  issues.forEach(x=>{ conseils += `<span class="badge warn">${x}</span> `; });
   let html = `<div class="card"><h2>${IC.syringe} Paliers de dose — modifiables (max ${maxDose()} mg)</h2>
-  <table><tr><th>De sem.</th><th>À sem.</th><th>Dose (mg)</th><th></th></tr>
+  <p class="muted" style="margin-bottom:8px">Les paliers s'enchaînent automatiquement — aucun trou, aucun chevauchement possible. Règle la <b>fin</b> de chaque palier et sa <b>dose</b> : les suivants se décalent tout seuls.</p>
+  <table><tr><th>Palier</th><th>Semaines</th><th>Fin (sem.)</th><th>Dose (mg)</th><th></th></tr>
   ${ps.map((p,i)=>{
     const active = curW && curW>=p.a && curW<=p.b;
+    const isLast = i===ps.length-1;
     return `<tr ${active?'style="background:var(--gold-soft)"':''}>
-      <td><input type="number" min="1" max="${protoWeeks()}" value="${p.a}" onchange="setPalier(${i},'a',this.value)" style="width:60px"></td>
-      <td><input type="number" min="1" max="${protoWeeks()}" value="${p.b}" onchange="setPalier(${i},'b',this.value)" style="width:60px"></td>
+      <td><b>${i+1}</b></td>
+      <td>S${p.a} → S${p.b}</td>
+      <td>${isLast?`<span class="muted">fin du protocole</span>`:`<input type="number" min="${p.a}" max="${protoWeeks()-(ps.length-1-i)}" value="${p.b}" onchange="setPalier(${i},'b',this.value)" style="width:64px">`}</td>
       <td><input type="number" step="0.25" min="0.25" value="${p.d}" onchange="setPalier(${i},'d',this.value)" style="width:72px"> ${active?'<span class="badge gold">en cours</span>':''}</td>
-      <td><button class="xbtn" title="Supprimer ce palier" onclick="delPalier(${i})">✕</button></td></tr>`;
+      <td>${ps.length>1?`<button class="xbtn" title="Supprimer ce palier" onclick="delPalier(${i})">✕</button>`:""}</td></tr>`;
   }).join("")}
   </table>
   <div class="row" style="margin-top:10px">
@@ -1019,12 +1036,21 @@ function renderProto(){
   <p style="margin-top:10px;line-height:2">${conseils}</p>
   <p class="muted" style="margin-top:6px">Total : <b>${protocolTotalMg()} mg</b> sur ${protoWeeks()} semaines. Injection sous-cutanée 1×/semaine, le soir (meilleure tolérance). Base de départ : titration de référence 0,5 → 1 → 2 mg. Perte &gt; 1 %/semaine = remonter les calories, pas la dose. Tout changement de protocole est à valider médicalement.</p></div>`;
 
+  const nbMois = Math.min(4, Math.ceil(protoWeeks()/4));
+  const curMois = curW && curW>=1 && curW<=protoWeeks() ? Math.min(4, Math.ceil(curW/4)) : null;
   html += `<div class="card"><h2>${IC.foods} Cibles nutritionnelles par mois</h2>
   <table><tr><th>Mois</th><th>Sem.</th><th>kcal/j</th><th>Prot./j</th></tr>
-  ${PHASES.map(p=>`<tr ${curW&&Math.ceil(curW/4)===p.mois&&curW>=1&&curW<=16?'style="background:var(--gold-soft)"':''}>
-    <td><b>${p.mois}</b></td><td>${p.sem}</td><td>${p.kcal[0]}-${p.kcal[1]}</td><td>${p.prot[0]}-${p.prot[1]} g</td></tr>`).join("")}
+  ${PHASES.slice(0,nbMois).map((p,idx)=>{
+    const m = idx+1;
+    const a = (m-1)*4+1;
+    const b = m===nbMois ? protoWeeks() : m*4;
+    return `<tr ${curMois===m?'style="background:var(--gold-soft)"':''}>
+    <td><b>${m}${m===4&&protoWeeks()>16?"+":""}</b></td><td>${a}-${b}</td><td>${p.kcal[0]}-${p.kcal[1]}</td><td>${p.prot[0]}-${p.prot[1]} g</td></tr>`;
+  }).join("")}
   </table>
-  <p class="muted" style="margin-top:8px">${PHASES.map(p=>`<b>Mois ${p.mois} :</b> ${p.note}`).join("<br>")}</p></div>`;
+  <p class="muted" style="margin-top:8px">${PHASES.slice(0,nbMois).map(p=>`<b>Mois ${p.mois} :</b> ${p.note}`).join("<br>")}</p>
+  ${protoWeeks()>16?`<p class="muted" style="margin-top:6px">Protocole étendu à ${protoWeeks()} semaines : au-delà de la semaine 16, les cibles du mois 4 continuent de s'appliquer (menus ajustés automatiquement en conséquence).</p>`:""}
+  ${protoWeeks()<16?`<p class="muted" style="margin-top:6px">Protocole raccourci à ${protoWeeks()} semaines : seuls les ${nbMois} premiers mois de cibles s'appliquent.</p>`:""}</div>`;
 
   html += `<div class="card"><h2>${IC.week} Progression</h2><div class="grid16">`;
   for(let w=1;w<=protoWeeks();w++){
@@ -1068,27 +1094,40 @@ function setInjSite(w,v){ state.injSites=state.injSites||{}; if(v) state.injSite
 function tv(){ state.tools = state.tools||{}; return state.tools; }
 function setTool(k,v){ tv()[k] = (v===""||v===null) ? null : Number(v); save(); render(); }
 function protocolTotalMg(){ let t=0; for(let w=1;w<=protoWeeks();w++) t+=parseFloat(doseForWeek(w)); return Math.round(t*100)/100; }
-function ensureDoses(){ if(!Array.isArray(state.doses)||!state.doses.length) state.doses=dosePaliers(); return state.doses; }
+function ensureDoses(){
+  if(!Array.isArray(state.doses)||!state.doses.length) state.doses=dosePaliers();
+  rebuildChain();
+  return state.doses;
+}
 function setPalier(i,f,v){
   const ps=ensureDoses(); v=Number(v);
   if(f==="d"){ ps[i].d=Math.max(0.25,Math.round(v*4)/4); }
-  else { ps[i][f]=Math.min(protoWeeks(),Math.max(1,Math.round(v)||1)); if(ps[i].a>ps[i].b){ if(f==="a") ps[i].b=ps[i].a; else ps[i].a=ps[i].b; } }
-  ps.sort((x,y)=>x.a-y.a); save(); render();
+  else if(f==="b"){
+    // La fin d'un palier décale automatiquement les suivants ; chaque palier suivant garde au moins 1 semaine.
+    const maxB = protoWeeks() - (ps.length-1-i);
+    ps[i].b = Math.min(maxB, Math.max(ps[i].a, Math.round(v)||ps[i].a));
+    for(let j=i+1;j<ps.length;j++){ ps[j].a=ps[j-1].b+1; if(ps[j].b<ps[j].a) ps[j].b=ps[j].a; }
+    ps[ps.length-1].b=protoWeeks();
+  }
+  save(); render();
 }
 function addPalier(){
   const ps=ensureDoses();
-  const last=[...ps].sort((x,y)=>x.b-y.b).pop();
-  const a=Math.min(protoWeeks(),last.b+1);
-  ps.push({a, b:protoWeeks(), d:last.d}); ps.sort((x,y)=>x.a-y.a); save(); render();
+  const last=ps[ps.length-1];
+  if(last.b-last.a<1){ alert("Le dernier palier ne fait qu'une semaine : allonge-le (ou la durée du protocole) avant d'en ajouter un."); return; }
+  const cut=Math.max(last.a+1, last.b-3); // le nouveau palier prend les dernières semaines
+  ps.push({a:cut, b:last.b, d:last.d});
+  last.b=cut-1;
+  save(); render();
 }
 function delPalier(i){
   const ps=ensureDoses();
   if(ps.length<=1){ alert("Il faut au moins un palier."); return; }
-  ps.splice(i,1); save(); render();
+  ps.splice(i,1); rebuildChain(); save(); render();
 }
 function setProtoWeeks(v){
   v=Math.round(Number(v)); if(!(v>=4&&v<=52)){ alert("Durée entre 4 et 52 semaines."); render(); return; }
-  state.protoWeeks=v; save(); render();
+  state.protoWeeks=v; rebuildChain(); save(); render();
 }
 function resetDoses(){
   if(!confirm("Revenir au protocole par défaut (0,5 → 1 → 2 mg, 16 semaines) ?")) return;
