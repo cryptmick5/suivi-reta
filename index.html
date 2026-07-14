@@ -218,14 +218,75 @@ const PHASES = [
  {mois:4,sem:"13-16",kcal:[1400,1500],prot:[100,125],note:"Augmenter les protéines +20-30 g/repas principal, priorité à la tolérance."}
 ];
 
-// Paliers de dose — titration adaptée du générateur RAL Peptides, PLAFONNÉE À 2 MG
-const DOSES = [
- {sem:"1",dose:"0.5 mg",lab:"Démarrage",note:"Évaluer la tolérance, dose la plus basse."},
- {sem:"2-4",dose:"1 mg",lab:"Palier initial",note:"Montée douce, laisser le corps s'adapter."},
- {sem:"5-8",dose:"2 mg",lab:"Dose plafond",note:"Palier maximal choisi — on ne dépasse pas 2 mg."},
- {sem:"9-16",dose:"2 mg",lab:"Maintien",note:"Demi-vie longue (~5-6 j) : l'effet continue d'augmenter sans monter la dose. Les paliers 4 et 6 mg du protocole de référence ne sont volontairement pas utilisés."}
+// Paliers de dose — modifiables par l'utilisatrice ; défaut = titration prudente plafonnée à 2 mg
+const DEFAULT_DOSES = [
+ {a:1,b:1,d:0.5},
+ {a:2,b:4,d:1},
+ {a:5,b:8,d:2},
+ {a:9,b:16,d:2}
 ];
-function doseForWeek(w){ if(w===1) return "0.5 mg"; if(w<=4) return "1 mg"; return "2 mg"; }
+function protoWeeks(){ const n=Number(state.protoWeeks); return (n>=4&&n<=52)?Math.round(n):16; }
+function dosePaliers(){ return (Array.isArray(state.doses)&&state.doses.length)?state.doses:DEFAULT_DOSES.map(p=>({a:p.a,b:p.b,d:p.d})); }
+function doseForWeek(w){
+  const ps=[...dosePaliers()].sort((x,y)=>x.a-y.a);
+  const p=ps.find(p=>w>=p.a&&w<=p.b);
+  if(p) return p.d+" mg";
+  const before=ps.filter(x=>x.b<w).pop(); // trou : la dose du palier précédent s'applique
+  return (before?before.d:ps[0].d)+" mg";
+}
+function maxDose(){ return Math.max(...dosePaliers().map(p=>+p.d||0)); }
+function doseCoverageIssues(){
+  const ps=[...dosePaliers()].sort((x,y)=>x.a-y.a);
+  const issues=[]; let cursor=1;
+  ps.forEach(p=>{
+    if(p.a>cursor) issues.push(`S${cursor}-${p.a-1} sans palier défini (dose précédente appliquée)`);
+    if(p.a<cursor) issues.push(`chevauchement de paliers autour de S${p.a}`);
+    cursor=Math.max(cursor,p.b+1);
+  });
+  if(cursor<=protoWeeks()) issues.push(`S${cursor}-${protoWeeks()} sans palier défini (dernière dose appliquée)`);
+  return issues;
+}
+// Import de recette au format structuré (assistant Perplexity)
+function normName(s){ return String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim(); }
+function normCat(s){
+  s=normName(s);
+  if(s.startsWith("prot")) return "proteines";
+  if(s.startsWith("fec")) return "feculents";
+  if(s.startsWith("leg")) return "legumes";
+  if(s.startsWith("fruit")) return "fruits";
+  if(s.startsWith("lait")) return "laitier";
+  if(s.startsWith("mat")||s.includes("gras")||s.startsWith("huile")) return "matieres_grasses";
+  return null;
+}
+function findFoodByName(cat,nom){
+  const n=normName(nom);
+  return allFoods(cat).find(f=>{const fn=normName(f.nom);return fn===n||fn.includes(n)||n.includes(fn);})||null;
+}
+function parseRecipeImport(text){
+  const out={nom:null,type:null,instr:null,ings:[],errors:[]};
+  String(text).split(/\r?\n/).forEach(line=>{
+    const l=line.replace(/^[-*\s]+/,"").trim(); if(!l) return;
+    const m=l.match(/^([A-Za-zÉÈéè]+)\s*:\s*(.+)$/); if(!m) return;
+    const key=normName(m[1]).toUpperCase(); const val=m[2].trim();
+    if(key==="NOM") out.nom=val;
+    else if(key==="TYPE"){
+      const t=normName(val);
+      out.type = t.includes("petit")?"petit_dej":(t.includes("coll")?"collation":"repas");
+    }
+    else if(key==="PREPARATION") out.instr=val;
+    else if(key==="INGREDIENT"){
+      const p=val.split("|").map(s=>s.trim());
+      if(p.length<3){ out.errors.push("Ligne ingrédient incomplète : "+val); return; }
+      const cat=normCat(p[0]), g=parseFloat(String(p[2]).replace(",","."));
+      const kcal=p.length>3?parseFloat(String(p[3]).replace(",",".")):NaN;
+      const prot=p.length>4?parseFloat(String(p[4]).replace(",",".")):NaN;
+      if(!cat){ out.errors.push("Catégorie inconnue : "+p[0]); return; }
+      if(!p[1]||!(g>0)){ out.errors.push("Nom ou grammage invalide : "+val); return; }
+      out.ings.push({cat,nom:p[1],g:Math.round(g),kcal,prot});
+    }
+  });
+  return out;
+}
 
 const MEAL_DEFS = [
  {nom:"Petit-déjeuner",type:"petit_dej"},
@@ -371,8 +432,8 @@ function weekNum(dateISO){
 }
 function phaseOf(dateISO){
   const w = weekNum(dateISO);
-  if(w===null || w<1 || w>16) return null;
-  return PHASES[Math.min(3, Math.ceil(w/4)-1)];
+  if(w===null || w<1 || w>protoWeeks()) return null;
+  return PHASES[Math.min(3, Math.ceil(w/4)-1)]; // au-delà du mois 4, cibles du mois 4 conservées
 }
 // Noms des plats du menu de base (7 jours × 5 repas) — pour savoir ce qu'on remplace
 const BASE_NAMES = [
@@ -584,7 +645,7 @@ function renderHead(){
   const today = iso(new Date());
   const w = weekNum(today), ph = phaseOf(today);
   $("#headSub").textContent = state.start
-    ? (ph ? `Aujourd'hui : semaine ${w}/16 · Mois ${ph.mois} · dose ${doseForWeek(w)}/sem (plafond 2 mg)` : (w<1?`Protocole débute le ${fmtDate(state.start)}`:`Protocole 16 semaines terminé`))
+    ? (ph ? `Aujourd'hui : semaine ${w}/${protoWeeks()} · Mois ${ph.mois} · dose ${doseForWeek(w)}/sem (max ${maxDose()} mg)` : (w<1?`Protocole débute le ${fmtDate(state.start)}`:`Protocole ${protoWeeks()} semaines terminé`))
     : "Date de début non définie";
   $("#setBtn").innerHTML = IC.gear+" Réglages";
 }
@@ -785,16 +846,33 @@ function copyShop(start){
 /* ---------- Vue Protocole + injections ---------- */
 function renderProto(){
   const curW = state.start ? weekNum(iso(new Date())) : null;
-  let html = `<div class="card"><h2>${IC.syringe} Paliers de dose — plafond 2 mg</h2>
-  <table><tr><th>Sem.</th><th>Dose</th><th>Phase</th></tr>
-  ${DOSES.map(d=>{
-    const [a,b] = d.sem.includes("-") ? d.sem.split("-").map(Number) : [Number(d.sem),Number(d.sem)];
-    const active = curW && curW>=a && curW<=b;
-    return `<tr ${active?'style="background:var(--gold-soft)"':''}><td>${d.sem}</td><td class="doseTag">${d.dose}</td><td>${d.lab}${active?' <span class="badge gold">en cours</span>':''}</td></tr>`;
+  const ps = [...dosePaliers()].sort((x,y)=>x.a-y.a);
+  const issues = doseCoverageIssues();
+  let conseils = "";
+  if(maxDose()<=2) conseils += `<span class="badge ok">Plafond prudent : ${maxDose()} mg ✓ — accumulation naturelle (demi-vie ~5-6 j), l'effet monte sans monter la dose.</span> `;
+  else if(maxDose()<=6) conseils += `<span class="badge warn">Dose max ${maxDose()} mg — au-dessus du plafond prudent de 2 mg. Progression lente impérative (+0,25 à 0,5 mg toutes les 2-4 semaines) et suivi médical renforcé.</span> `;
+  else conseils += `<span class="badge bad">Dose max ${maxDose()} mg — dépasse le palier maximal du protocole de référence (6 mg). Fortement déconseillé.</span> `;
+  for(let i=1;i<ps.length;i++){ if(ps[i].d > 2*ps[i-1].d) conseils += `<span class="badge warn">Montée rapide à S${ps[i].a} (${ps[i-1].d} → ${ps[i].d} mg) : la référence recommande de ne jamais plus que doubler.</span> `; }
+  issues.forEach(x=>{ conseils += `<span class="badge warn">${x}</span> `; });
+  let html = `<div class="card"><h2>${IC.syringe} Paliers de dose — modifiables (max ${maxDose()} mg)</h2>
+  <table><tr><th>De sem.</th><th>À sem.</th><th>Dose (mg)</th><th></th></tr>
+  ${ps.map((p,i)=>{
+    const active = curW && curW>=p.a && curW<=p.b;
+    return `<tr ${active?'style="background:var(--gold-soft)"':''}>
+      <td><input type="number" min="1" max="${protoWeeks()}" value="${p.a}" onchange="setPalier(${i},'a',this.value)" style="width:60px"></td>
+      <td><input type="number" min="1" max="${protoWeeks()}" value="${p.b}" onchange="setPalier(${i},'b',this.value)" style="width:60px"></td>
+      <td><input type="number" step="0.25" min="0.25" value="${p.d}" onchange="setPalier(${i},'d',this.value)" style="width:72px"> ${active?'<span class="badge gold">en cours</span>':''}</td>
+      <td><button class="xbtn" title="Supprimer ce palier" onclick="delPalier(${i})">✕</button></td></tr>`;
   }).join("")}
   </table>
-  <p class="muted" style="margin-top:10px">${DOSES.map(d=>`<b>S${d.sem} :</b> ${d.note}`).join("<br>")}</p>
-  <p class="muted" style="margin-top:8px">Titration adaptée du protocole de référence RAL Peptides (0.5 → 1 → 2 mg), volontairement plafonnée à 2 mg sur les 16 semaines. Injection sous-cutanée 1×/semaine, le soir (meilleure tolérance). Demi-vie ~5-6 jours : état d'équilibre après ~4-5 semaines.</p></div>`;
+  <div class="row" style="margin-top:10px">
+    <button class="btn small" onclick="addPalier()">+ Ajouter un palier</button>
+    <label class="muted" style="font-size:11px">Durée du protocole (sem.)
+      <input type="number" min="4" max="52" value="${protoWeeks()}" onchange="setProtoWeeks(this.value)" style="width:64px;margin-left:4px"></label>
+    <button class="btn small danger" onclick="resetDoses()">Protocole par défaut</button>
+  </div>
+  <p style="margin-top:10px;line-height:2">${conseils}</p>
+  <p class="muted" style="margin-top:6px">Total : <b>${protocolTotalMg()} mg</b> sur ${protoWeeks()} semaines. Injection sous-cutanée 1×/semaine, le soir (meilleure tolérance). Base de départ : titration de référence 0,5 → 1 → 2 mg. Perte &gt; 1 %/semaine = remonter les calories, pas la dose. Tout changement de protocole est à valider médicalement.</p></div>`;
 
   html += `<div class="card"><h2>${IC.foods} Cibles nutritionnelles par mois</h2>
   <table><tr><th>Mois</th><th>Sem.</th><th>kcal/j</th><th>Prot./j</th></tr>
@@ -804,18 +882,18 @@ function renderProto(){
   <p class="muted" style="margin-top:8px">${PHASES.map(p=>`<b>Mois ${p.mois} :</b> ${p.note}`).join("<br>")}</p></div>`;
 
   html += `<div class="card"><h2>${IC.week} Progression</h2><div class="grid16">`;
-  for(let w=1;w<=16;w++){
+  for(let w=1;w<=protoWeeks();w++){
     const cls = curW===w?"cur":(curW&&w<curW?"done":"");
     html += `<div class="wk ${cls}" title="Semaine ${w} · ${doseForWeek(w)}">S${w}</div>`;
   }
-  html += `</div>${curW?`<p class="muted" style="margin-top:8px">${curW>=1&&curW<=16?`Semaine actuelle : ${curW} — dose ${doseForWeek(curW)}`:curW<1?"Le protocole n'a pas encore commencé.":"Protocole terminé."}</p>`:""}</div>`;
+  html += `</div>${curW?`<p class="muted" style="margin-top:8px">${curW>=1&&curW<=protoWeeks()?`Semaine actuelle : ${curW} — dose ${doseForWeek(curW)}`:curW<1?"Le protocole n'a pas encore commencé.":"Protocole terminé."}</p>`:""}</div>`;
 
   html += `<div class="card"><h2>${IC.syringe} Suivi des injections hebdomadaires</h2>`;
   if(!state.start){ html += `<p class="muted">Définis la date de début dans Réglages.</p>`; }
   else{
     html += `<table><tr><th></th><th>Sem.</th><th>Date</th><th>Dose</th><th>Site</th></tr>`;
     const sites = (state.injSites||{});
-    for(let w=1;w<=16;w++){
+    for(let w=1;w<=protoWeeks();w++){
       const d = addDays(state.start,(w-1)*7);
       const done = !!state.injections[w];
       const sug = SITES[(w-1)%SITES.length];
@@ -844,7 +922,33 @@ function setInjSite(w,v){ state.injSites=state.injSites||{}; if(v) state.injSite
 /* ---------- Vue Outils (adaptés de RAL Peptides) ---------- */
 function tv(){ state.tools = state.tools||{}; return state.tools; }
 function setTool(k,v){ tv()[k] = (v===""||v===null) ? null : Number(v); save(); render(); }
-function protocolTotalMg(){ let t=0; for(let w=1;w<=16;w++) t+=parseFloat(doseForWeek(w)); return t; }
+function protocolTotalMg(){ let t=0; for(let w=1;w<=protoWeeks();w++) t+=parseFloat(doseForWeek(w)); return Math.round(t*100)/100; }
+function ensureDoses(){ if(!Array.isArray(state.doses)||!state.doses.length) state.doses=dosePaliers(); return state.doses; }
+function setPalier(i,f,v){
+  const ps=ensureDoses(); v=Number(v);
+  if(f==="d"){ ps[i].d=Math.max(0.25,Math.round(v*4)/4); }
+  else { ps[i][f]=Math.min(protoWeeks(),Math.max(1,Math.round(v)||1)); if(ps[i].a>ps[i].b){ if(f==="a") ps[i].b=ps[i].a; else ps[i].a=ps[i].b; } }
+  ps.sort((x,y)=>x.a-y.a); save(); render();
+}
+function addPalier(){
+  const ps=ensureDoses();
+  const last=[...ps].sort((x,y)=>x.b-y.b).pop();
+  const a=Math.min(protoWeeks(),last.b+1);
+  ps.push({a, b:protoWeeks(), d:last.d}); ps.sort((x,y)=>x.a-y.a); save(); render();
+}
+function delPalier(i){
+  const ps=ensureDoses();
+  if(ps.length<=1){ alert("Il faut au moins un palier."); return; }
+  ps.splice(i,1); save(); render();
+}
+function setProtoWeeks(v){
+  v=Math.round(Number(v)); if(!(v>=4&&v<=52)){ alert("Durée entre 4 et 52 semaines."); render(); return; }
+  state.protoWeeks=v; save(); render();
+}
+function resetDoses(){
+  if(!confirm("Revenir au protocole par défaut (0,5 → 1 → 2 mg, 16 semaines) ?")) return;
+  delete state.doses; delete state.protoWeeks; save(); render(); toast("Protocole par défaut restauré");
+}
 function renderOutils(){
   const sub = cur.toolTab||"idees";
   const pills = [["idees","Idées repas"],["recon","Reconstitution"],["zones","Zones d'injection"],["tdee","TDEE"]];
@@ -924,7 +1028,7 @@ function toolIdees(){
 function toolRecon(){
   const t = tv();
   const curW = state.start ? weekNum(iso(new Date())) : null;
-  const defDose = (curW && curW>=1 && curW<=16) ? parseFloat(doseForWeek(curW)) : 1;
+  const defDose = (curW && curW>=1 && curW<=protoWeeks()) ? parseFloat(doseForWeek(curW)) : 1;
   const vial = t.vial ?? 10, bac = t.bac ?? 1, dose = t.dose ?? defDose, cap = t.syr ?? 100;
   const conc = vial/bac;                       // mg/ml
   const vol = dose/conc;                       // ml
@@ -945,7 +1049,7 @@ function toolRecon(){
         <option value="30" ${cap==30?"selected":""}>0,3 ml (30 UI)</option>
       </select></label>
     </div>
-    ${curW&&curW>=1&&curW<=16&&t.dose==null?`<p class="muted" style="margin-top:6px">Dose pré-remplie avec ta semaine actuelle (S${curW} : ${doseForWeek(curW)}).</p>`:""}
+    ${curW&&curW>=1&&curW<=protoWeeks()&&t.dose==null?`<p class="muted" style="margin-top:6px">Dose pré-remplie avec ta semaine actuelle (S${curW} : ${doseForWeek(curW)}).</p>`:""}
     <div class="result-grid">
       <div class="result-box"><div class="val">${conc.toFixed(1)} mg/ml</div><div class="lab">Concentration (${(conc*1000).toFixed(0)} mcg/ml)</div></div>
       <div class="result-box"><div class="val">${vol.toFixed(3)} ml</div><div class="lab">Volume à injecter</div></div>
@@ -955,11 +1059,11 @@ function toolRecon(){
     ${over?`<p style="margin-top:10px"><span class="badge bad">Volume supérieur à la capacité de la seringue — choisis une seringue plus grande ou réduis le volume d'eau BAC.</span></p>`:""}
     <div style="margin-top:12px">${syringeSVG(ui,cap)}</div>
     <p class="muted" style="margin-top:8px">UI = graduations d'une seringue insuline U-100 (1 UI = 0,01 ml). Valeurs indicatives.</p></div>`;
-  html += `<div class="card"><h2>${IC.syringe} Besoins sur les 16 semaines (plafond 2 mg)</h2>
+  html += `<div class="card"><h2>${IC.syringe} Besoins sur les ${protoWeeks()} semaines (max ${maxDose()} mg)</h2>
     <div class="result-grid">
       <div class="result-box"><div class="val">${totalMg} mg</div><div class="lab">Quantité totale du protocole</div></div>
       <div class="result-box"><div class="val">${fioles}</div><div class="lab">Fiole(s) de ${vial} mg</div></div>
-      <div class="result-box"><div class="val">16</div><div class="lab">Seringues (1 neuve/injection)</div></div>
+      <div class="result-box"><div class="val">${protoWeeks()}</div><div class="lab">Seringues (1 neuve/injection)</div></div>
       <div class="result-box"><div class="val">${semParFiole?semParFiole.toFixed(1):"—"}</div><div class="lab">Semaines par fiole à ${dose} mg</div></div>
     </div>
     ${semParFiole>4?`<p style="margin-top:10px"><span class="badge warn">Attention : une fiole reconstituée se conserve ~4 semaines (2-8 °C). À ${dose} mg/sem, une fiole de ${vial} mg couvre ${semParFiole.toFixed(1)} semaines — reconstitue avec moins d'eau utilisable ou prévois de jeter le surplus.</span></p>`:`<p class="muted" style="margin-top:10px">Conservation après reconstitution : ~4 semaines au réfrigérateur (2-8 °C). Ne pas congeler, ne pas agiter vigoureusement.</p>`}
@@ -1120,9 +1224,16 @@ function renderRecettes(){
     </div>`;
   });
   html += `<div class="card"><h2>${IC.chef} Créer une recette</h2>
+    <div class="note-star"><b>Assistant Perplexity :</b> 1) ouvre la demande pré-remplie, 2) copie toute la réponse, 3) colle-la ci-dessous, 4) « Importer » — nom, ingrédients (grammes, kcal, protéines) et préparation se remplissent seuls. Les aliments inconnus sont ajoutés automatiquement à la base.</div>
     <div class="formgrid">
-      <input type="text" id="nr_nom" placeholder="Nom de la recette">
       <select id="nr_type">${types.map(([k,v])=>`<option value="${k}" ${cur.recFilter===k?"selected":""}>${v}</option>`).join("")}</select>
+      <div class="row">
+        <button class="btn small" onclick="openPerplexityRecette()">Ouvrir Perplexity (demande pré-remplie)</button>
+      </div>
+      <textarea id="imp_txt" placeholder="Colle ici la réponse de Perplexity (lignes NOM: / TYPE: / INGREDIENT: / PREPARATION:)…"></textarea>
+      <div class="row"><button class="btn small primary" onclick="importRecipeText()">Importer dans le formulaire</button></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+      <input type="text" id="nr_nom" placeholder="Nom de la recette">
       <div id="nr_items"></div>
       <div class="row"><select id="nr_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
       <button class="btn small" onclick="nrAddRow()">+ Ingrédient</button></div>
@@ -1159,6 +1270,67 @@ function delRecipe(id){
   if(!confirm("Supprimer cette recette ?")) return;
   state.customRecipes = (state.customRecipes||[]).filter(r=>r.id!==id); save(); render(); toast("Recette supprimée");
 }
+const BANNED_FOODS = ["banane","porc","papaye"];
+function openPerplexityRecette(){
+  const t = $("#nr_type") ? $("#nr_type").value : "repas";
+  const cible = t==="repas" ? "400-500 kcal, riche en protéines" : (t==="petit_dej" ? "250-350 kcal" : "100-200 kcal");
+  const q = `Propose UNE recette low FODMAP (sans oignon, sans ail, sans lactose, sans banane, sans porc, sans papaye) pour 1 personne, type ${t==="petit_dej"?"petit-déjeuner":t}, environ ${cible}. Réponds STRICTEMENT dans ce format, une ligne par élément, sans aucun texte autour :
+NOM: nom de la recette
+TYPE: ${t}
+INGREDIENT: catégorie | nom de l'aliment | grammes | kcal pour 100g | protéines en g pour 100g
+(une ligne INGREDIENT par aliment ; catégorie parmi : proteines, feculents, legumes, fruits, laitier, matieres_grasses)
+PREPARATION: les étapes en 2-3 phrases sur une seule ligne`;
+  window.open("https://www.perplexity.ai/search?q="+encodeURIComponent(q), "_blank");
+}
+function importRecipeText(){
+  const txt = $("#imp_txt").value;
+  if(!txt.trim()){ alert("Colle d'abord la réponse de Perplexity."); return; }
+  const p = parseRecipeImport(txt);
+  const errs = [...p.errors];
+  if(!p.ings.length){ alert("Aucun ingrédient reconnu.\n"+(errs.join("\n")||"Vérifie que la réponse suit le format NOM / TYPE / INGREDIENT / PREPARATION.")); return; }
+  nrRows = [];
+  let created = 0;
+  p.ings.forEach(ing=>{
+    if(BANNED_FOODS.some(b=>normName(ing.nom).includes(b))){ errs.push("Ingrédient exclu (banane/porc/papaye) ignoré : "+ing.nom); return; }
+    let f = findFoodByName(ing.cat, ing.nom);
+    if(!f){
+      if(!(ing.kcal>0) || isNaN(ing.prot)){ errs.push("kcal/protéines manquants pour « "+ing.nom+" » — ingrédient ignoré"); return; }
+      f = {id:"cf"+Date.now()+Math.floor(Math.random()*1000), nom:ing.nom, kcal:Math.round(ing.kcal), prot:Math.round(ing.prot*10)/10};
+      state.customFoods[ing.cat] = state.customFoods[ing.cat]||[];
+      state.customFoods[ing.cat].push(f);
+      created++;
+    }
+    nrRows.push([ing.cat, f.id, ing.g]);
+  });
+  if(!nrRows.length){ alert("Rien à importer.\n"+errs.join("\n")); return; }
+  save();
+  if(p.nom) $("#nr_nom").value = p.nom;
+  if(p.type) $("#nr_type").value = p.type;
+  if(p.instr) $("#nr_instr").value = p.instr;
+  drawNrRows();
+  toast(`Recette importée (${nrRows.length} ingrédients${created?", "+created+" nouveaux aliments":""}) — vérifie puis enregistre`);
+  if(errs.length) alert("Import partiel :\n"+errs.join("\n"));
+}
+// Valeurs nutritionnelles automatiques (OpenFoodFacts)
+async function fetchFoodInfo(){
+  const nom = $("#nf_nom").value.trim();
+  if(!nom){ alert("Saisis d'abord le nom de l'aliment."); return; }
+  toast("Recherche des valeurs…");
+  try{
+    const r = await fetch("https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=10&fields=product_name,nutriments&search_terms="+encodeURIComponent(nom));
+    const j = await r.json();
+    const prod = (j.products||[]).find(p=>p.nutriments && p.nutriments["energy-kcal_100g"]>0 && p.nutriments["proteins_100g"]!=null);
+    if(!prod){ toast("Introuvable sur OpenFoodFacts — essaie le bouton Perplexity"); return; }
+    $("#nf_kcal").value = Math.round(prod.nutriments["energy-kcal_100g"]);
+    $("#nf_prot").value = (+prod.nutriments["proteins_100g"]).toFixed(1);
+    toast("Valeurs trouvées : "+(prod.product_name||nom));
+  }catch(e){ toast("Recherche indisponible (hors ligne ?) — essaie Perplexity"); }
+}
+function openPerplexityAliment(){
+  const nom = $("#nf_nom").value.trim() || "l'aliment";
+  const q = `Valeurs nutritionnelles pour 100 g de ${nom} (cru sauf mention contraire) : donne uniquement deux lignes au format KCAL: nombre et PROTEINES: nombre en grammes. Indique aussi si cet aliment est compatible low FODMAP.`;
+  window.open("https://www.perplexity.ai/search?q="+encodeURIComponent(q), "_blank");
+}
 
 /* ---------- Vue Poids ---------- */
 function renderPoids(){
@@ -1172,12 +1344,12 @@ function renderPoids(){
     <p class="muted" style="margin-top:6px">Pèse-toi une fois par semaine, idéalement le même jour au réveil.</p></div>`;
 
   if(entries.length){
-    html += `<div class="card"><h2>${IC.weight} Courbe (16 semaines)</h2><div id="chartWrap">${weightChart(entries)}</div></div>`;
+    html += `<div class="card"><h2>${IC.weight} Courbe (${protoWeeks()} semaines)</h2><div id="chartWrap">${weightChart(entries)}</div></div>`;
     html += `<div class="card"><table><tr><th>Date</th><th>Semaine</th><th>Poids</th><th>Δ</th><th></th></tr>`;
     entries.forEach(([d,kg],i)=>{
       const w = weekNum(d);
       const delta = i>0 ? (kg-entries[i-1][1]) : null;
-      html += `<tr><td>${parseISO(d).toLocaleDateString("fr-FR")}</td><td>${w&&w>=1&&w<=16?"S"+w:"—"}</td><td><b>${kg.toFixed(1)} kg</b></td>
+      html += `<tr><td>${parseISO(d).toLocaleDateString("fr-FR")}</td><td>${w&&w>=1&&w<=protoWeeks()?"S"+w:"—"}</td><td><b>${kg.toFixed(1)} kg</b></td>
         <td>${delta===null?"—":(delta>0?"+":"")+delta.toFixed(1)+" kg"}</td>
         <td><button class="xbtn" onclick="delWeight('${d}')">✕</button></td></tr>`;
     });
@@ -1203,7 +1375,7 @@ function weightChart(entries){
   let lo = Math.floor(Math.min(...kgs))-1, hi = Math.ceil(Math.max(...kgs))+1;
   if(hi-lo<6){ const mid=(hi+lo)/2; lo=Math.floor(mid-3); hi=Math.ceil(mid+3); } // échelle minimale lisible
   const t0 = state.start ? parseISO(state.start).getTime() : parseISO(entries[0][0]).getTime();
-  const span = Math.max(16*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5);
+  const span = Math.max(protoWeeks()*7*864e5, parseISO(entries[entries.length-1][0]).getTime()-t0 + 7*864e5);
   const IP = 26; // marge intérieure en pixels : le 1er point ne colle jamais l'axe
   const x = d => PL+IP + (parseISO(d).getTime()-t0)/span*(W-PL-PR-2*IP);
   const y = kg => H-PB - (kg-lo)/(hi-lo)*(H-PT-PB);
@@ -1212,7 +1384,7 @@ function weightChart(entries){
   for(let k=lo;k<=hi;k+=step){
     g += `<line x1="${PL}" y1="${y(k)}" x2="${W-PR}" y2="${y(k)}" stroke="rgba(212,175,55,.14)"/><text x="${PL-8}" y="${y(k)+4}" font-size="10" fill="#9b9484" text-anchor="end">${k}</text>`;
   }
-  for(let w=0;w<=16;w+=4){
+  for(let w=0;w<=protoWeeks();w+=4){
     const xx = PL+IP + (w*7*864e5)/span*(W-PL-PR-2*IP);
     g += `<line x1="${xx}" y1="${PT}" x2="${xx}" y2="${H-PB}" stroke="rgba(212,175,55,.08)"/><text x="${xx}" y="${H-10}" font-size="10" fill="#9b9484" text-anchor="middle">S${w}</text>`;
   }
@@ -1243,8 +1415,13 @@ function renderAliments(){
     <div class="formgrid">
       <select id="nf_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
       <input type="text" id="nf_nom" placeholder="Nom de l'aliment (low FODMAP de préférence)">
+      <div class="row">
+        <button class="btn small" onclick="fetchFoodInfo()">Remplir kcal/prot automatiquement</button>
+        <button class="btn small" onclick="openPerplexityAliment()">Vérifier via Perplexity</button>
+      </div>
       <div class="row"><input type="number" id="nf_kcal" step="1" min="1" placeholder="kcal/100g" style="width:110px">
       <input type="number" id="nf_prot" step="0.1" min="0" placeholder="prot g/100g" style="width:110px"></div>
+      <p class="muted">Remplissage automatique via OpenFoodFacts (nécessite internet) — vérifie la cohérence, les valeurs varient selon les produits.</p>
       <button class="btn primary" onclick="addFood()">Ajouter</button>
       <p class="muted">Vérifie que l'aliment est compatible low FODMAP avant de l'ajouter (appli Monash FODMAP en référence). Exclusions : banane, porc, papaye.</p>
     </div></div>`;
