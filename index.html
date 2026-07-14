@@ -246,8 +246,58 @@ function doseCoverageIssues(){
   if(cursor<=protoWeeks()) issues.push(`S${cursor}-${protoWeeks()} sans palier défini (dernière dose appliquée)`);
   return issues;
 }
+// Catalogue d'aliments génériques low FODMAP — valeurs pour 100 g issues des tables de composition standards
+// [catégorie, nom, kcal/100g, prot g/100g, note portion éventuelle]
+const CATALOG = [
+ ["proteines","Cuisse de poulet (sans peau, crue)",120,18.5],
+ ["proteines","Maquereau cru",205,19],
+ ["proteines","Sole crue",86,17],
+ ["proteines","Dorade crue",100,20],
+ ["proteines","Merlu cru",86,17.5],
+ ["proteines","Colin / lieu cru",90,19],
+ ["proteines","Steak haché 5% MG cru",129,21],
+ ["proteines","Blanc d'œuf",52,11],
+ ["proteines","Tempeh",192,20,"portion ≤ 100 g"],
+ ["feculents","Pâtes sans gluten cuites",131,2.5],
+ ["feculents","Riz complet cuit",111,2.6],
+ ["feculents","Patate douce cuite",76,1.4,"portion ≤ 75 g"],
+ ["feculents","Galettes de riz",387,7.5],
+ ["feculents","Farine de riz",366,6],
+ ["legumes","Aubergine cuite",35,0.8,"portion ≤ 75 g"],
+ ["legumes","Endive",17,1.2],
+ ["legumes","Radis",16,0.8],
+ ["legumes","Potimarron cuit",30,1.1,"portion ≤ 75 g"],
+ ["fruits","Jus de citron",25,0.4],
+ ["fruits","Fruit de la passion",68,2.2],
+ ["fruits","Rhubarbe cuite (sans sucre)",21,0.9],
+ ["laitier","Parmesan",392,36],
+ ["laitier","Feta",264,14,"portion ≤ 40 g"],
+ ["laitier","Brie",334,21,"portion ≤ 40 g"],
+ ["laitier","Lait sans lactose",42,3.3],
+ ["laitier","Yaourt grec sans lactose",95,9],
+ ["matieres_grasses","Beurre",717,0.9],
+ ["matieres_grasses","Huile de coco",892,0],
+ ["matieres_grasses","Graines de courge",559,30,"portion ≤ 23 g"],
+ ["matieres_grasses","Noix (cerneaux)",654,15,"portion ≤ 30 g"],
+ ["matieres_grasses","Amandes",579,21,"portion ≤ 12 g"],
+ ["matieres_grasses","Graines de chia",486,17,"portion ≤ 24 g"],
+ ["matieres_grasses","Beurre de cacahuète",588,25,"portion ≤ 32 g"],
+ ["matieres_grasses","Cacahuètes",567,26,"portion ≤ 28 g"],
+ ["matieres_grasses","Olives vertes",145,1]
+];
+// Mots-clés autonomes d'une recette : générés depuis le nom + les ingrédients
+const TAG_STOP = ["cuit","cuite","cuits","cuites","crue","cru","crus","sans","avec","frais","fraiche","nature","blanc","blanche","pour"];
+function genTags(nom, rows){
+  const t = new Set();
+  normName(nom).split(" ").forEach(w=>{ if(w.length>3 && !TAG_STOP.includes(w)) t.add(w); });
+  (rows||[]).forEach(r=>{
+    const f = findFood(r[0], r[1]); if(!f) return;
+    normName(f.nom).split(" ").forEach(w=>{ if(w.length>3 && !TAG_STOP.includes(w)) t.add(w); });
+  });
+  return [...t].slice(0,15);
+}
 // Import de recette au format structuré (assistant Perplexity)
-function normName(s){ return String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim(); }
+function normName(s){ return String(s).toLowerCase().replace(/œ/g,"oe").replace(/æ/g,"ae").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim(); }
 function normCat(s){
   s=normName(s);
   if(s.startsWith("prot")) return "proteines";
@@ -259,8 +309,13 @@ function normCat(s){
   return null;
 }
 function findFoodByName(cat,nom){
-  const n=normName(nom);
-  return allFoods(cat).find(f=>{const fn=normName(f.nom);return fn===n||fn.includes(n)||n.includes(fn);})||null;
+  // Correspondance stricte sur les mots significatifs : « Blanc d'œuf » ≠ « Œuf » (valeurs différentes),
+  // mais « panais » = « Panais cuit ». En cas de doute on crée un nouvel aliment plutôt que de se tromper.
+  const QUAL=["cru","crue","crus","crues","cuit","cuite","cuits","cuites","frais","fraiche","fraiches","nature","naturel","au","aux","de","du","des","le","la","les","sans","d","en","conserve","conserves","egouttee","egouttees","chair","peau","fromage","pate","dure","seul","seule","mg"];
+  const toks=s=>normName(s).split(" ").filter(w=>w&&!QUAL.includes(w)&&!/^\d+$/.test(w)).sort().join(" ");
+  const a=toks(nom);
+  if(!a) return null;
+  return allFoods(cat).find(f=>toks(f.nom)===a)||null;
 }
 function parseRecipeImport(text){
   const out={nom:null,type:null,instr:null,ings:[],errors:[]};
@@ -274,6 +329,7 @@ function parseRecipeImport(text){
       out.type = t.includes("petit")?"petit_dej":(t.includes("coll")?"collation":"repas");
     }
     else if(key==="PREPARATION") out.instr=val;
+    else if(key==="MOTSCLES"||key==="MOTCLES"||key==="MOTS") out.tags=val.split(/[,;·]/).map(s=>normName(s)).filter(Boolean).slice(0,10);
     else if(key==="INGREDIENT"){
       const p=val.split("|").map(s=>s.trim());
       if(p.length<3){ out.errors.push("Ligne ingrédient incomplète : "+val); return; }
@@ -1208,11 +1264,12 @@ function renderRecettes(){
   <p class="muted" style="margin:-2px 0 10px;font-style:italic">${INTROS[cur.recFilter]||""}</p>
   <input type="text" value="${esc(cur.recSearch||"")}" placeholder="Rechercher une recette ou un ingrédient…" style="width:100%;margin-bottom:12px"
     onchange="cur.recSearch=this.value;render()">`;
-  const q = (cur.recSearch||"").toLowerCase();
+  const q = normName(cur.recSearch||"");
   allRecipes(cur.recFilter).filter(r=>{
     if(!q) return true;
-    if(r.nom.toLowerCase().includes(q)) return true;
-    return r.items.some(it=>{const f=findFood(it[0],it[1]);return f&&f.nom.toLowerCase().includes(q);});
+    if(normName(r.nom).includes(q)) return true;
+    if((r.tags||[]).some(t=>t.includes(q))) return true;
+    return r.items.some(it=>{const f=findFood(it[0],it[1]);return f&&normName(f.nom).includes(q);});
   }).forEach(r=>{
     const t = mealTotals(r.items);
     html += `<div class="recipe-card">
@@ -1220,6 +1277,7 @@ function renderRecettes(){
       <p class="quip">${quip(r.type,r.id)}</p>
       <div class="ing">${r.items.map(it=>{const f=findFood(it[0],it[1]);return f?`${esc(f.nom)} ${it[2]} g`:"?";}).join(" · ")}</div>
       <div class="instr">${IC.chef} ${esc(r.instr)}</div>
+      ${r.tags&&r.tags.length?`<p class="muted" style="font-size:11px;margin-top:6px">Mots-clés : ${r.tags.map(esc).join(" · ")}</p>`:""}
       ${(state.customRecipes||[]).some(c=>c.id===r.id)?`<button class="btn small danger" style="margin-top:8px" onclick="delRecipe('${r.id}')">Supprimer</button>`:""}
     </div>`;
   });
@@ -1228,10 +1286,11 @@ function renderRecettes(){
     <div class="formgrid">
       <select id="nr_type">${types.map(([k,v])=>`<option value="${k}" ${cur.recFilter===k?"selected":""}>${v}</option>`).join("")}</select>
       <div class="row">
-        <button class="btn small" onclick="openPerplexityRecette()">Ouvrir Perplexity (demande pré-remplie)</button>
+        <button class="btn small" onclick="openPerplexityRecette()">1. Ouvrir Perplexity (demande pré-remplie)</button>
+        <button class="btn small primary" onclick="pasteAndImport()">2. Coller &amp; importer (1 geste)</button>
       </div>
-      <textarea id="imp_txt" placeholder="Colle ici la réponse de Perplexity (lignes NOM: / TYPE: / INGREDIENT: / PREPARATION:)…"></textarea>
-      <div class="row"><button class="btn small primary" onclick="importRecipeText()">Importer dans le formulaire</button></div>
+      <textarea id="imp_txt" placeholder="…ou colle manuellement la réponse ici (lignes NOM: / TYPE: / INGREDIENT: / MOTSCLES: / PREPARATION:)"></textarea>
+      <div class="row"><button class="btn small" onclick="importRecipeText()">Importer le texte collé</button><span id="imp_preview" class="muted"></span></div>
       <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
       <input type="text" id="nr_nom" placeholder="Nom de la recette">
       <div id="nr_items"></div>
@@ -1242,9 +1301,10 @@ function renderRecettes(){
       <p class="muted">Utilise de préférence des aliments low FODMAP de la base (extensible dans l'onglet Aliments). Pas de banane, porc ni papaye.</p>
     </div></div>`;
   $("#app").innerHTML = html;
-  nrRows = [];
+  nrRows = []; nrTags = [];
 }
 let nrRows = [];
+let nrTags = [];
 function nrAddRow(){
   const cat = $("#nr_cat").value;
   const foods = allFoods(cat);
@@ -1263,8 +1323,9 @@ function saveRecipe(){
   const instr = $("#nr_instr").value.trim();
   if(!nom || !nrRows.length){ alert("Nom et au moins un ingrédient requis."); return; }
   state.customRecipes = state.customRecipes||[];
-  state.customRecipes.push({id:"cr"+Date.now(), type:$("#nr_type").value, nom, instr:instr||"—", items:nrRows.map(r=>r.slice())});
-  save(); render(); toast("Recette enregistrée");
+  const tags = [...new Set([...genTags(nom, nrRows), ...(nrTags||[])])].slice(0,15); // mots-clés autonomes + importés
+  state.customRecipes.push({id:"cr"+Date.now(), type:$("#nr_type").value, nom, instr:instr||"—", items:nrRows.map(r=>r.slice()), tags});
+  save(); render(); toast("Recette enregistrée ("+tags.length+" mots-clés)");
 }
 function delRecipe(id){
   if(!confirm("Supprimer cette recette ?")) return;
@@ -1278,7 +1339,8 @@ function openPerplexityRecette(){
 NOM: nom de la recette
 TYPE: ${t}
 INGREDIENT: catégorie | nom de l'aliment | grammes | kcal pour 100g | protéines en g pour 100g
-(une ligne INGREDIENT par aliment ; catégorie parmi : proteines, feculents, legumes, fruits, laitier, matieres_grasses)
+(une ligne INGREDIENT par aliment ; catégorie parmi : proteines, feculents, legumes, fruits, laitier, matieres_grasses ; valeurs nutritionnelles exactes des tables de composition alimentaire)
+MOTSCLES: 4 à 6 mots-clés simples séparés par des virgules
 PREPARATION: les étapes en 2-3 phrases sur une seule ligne`;
   window.open("https://www.perplexity.ai/search?q="+encodeURIComponent(q), "_blank");
 }
@@ -1307,9 +1369,39 @@ function importRecipeText(){
   if(p.nom) $("#nr_nom").value = p.nom;
   if(p.type) $("#nr_type").value = p.type;
   if(p.instr) $("#nr_instr").value = p.instr;
+  nrTags = p.tags || [];
   drawNrRows();
+  const tot = mealTotals(nrRows);
+  const pv = $("#imp_preview"); if(pv) pv.textContent = `≈ ${Math.round(tot.k)} kcal · ${tot.p.toFixed(0)} g prot.`;
   toast(`Recette importée (${nrRows.length} ingrédients${created?", "+created+" nouveaux aliments":""}) — vérifie puis enregistre`);
   if(errs.length) alert("Import partiel :\n"+errs.join("\n"));
+}
+async function pasteAndImport(){
+  try{
+    const txt = await navigator.clipboard.readText();
+    if(!txt || !txt.trim()){ toast("Presse-papiers vide"); return; }
+    $("#imp_txt").value = txt;
+    importRecipeText();
+  }catch(e){ alert("Accès au presse-papiers refusé — colle manuellement dans la zone de texte."); }
+}
+// Recherche instantanée dans le catalogue intégré (valeurs vérifiées, hors ligne)
+function nfSearch(q){
+  const el = $("#nf_results"); if(!el) return;
+  q = normName(q);
+  if(q.length<2){ el.innerHTML=""; return; }
+  const hits = CATALOG.map((c,i)=>({c,i})).filter(x=>normName(x.c[1]).includes(q)).slice(0,8);
+  el.innerHTML = hits.length
+    ? hits.map(x=>`<button class="chip" onclick="nfPick(${x.i})">${esc(x.c[1])} · ${x.c[2]} kcal · ${x.c[3]} g prot.${x.c[4]?" · "+esc(x.c[4]):""}</button>`).join("")
+    : `<p class="muted" style="margin:4px 0">Pas dans le catalogue — utilise OpenFoodFacts ou Perplexity ci-dessous.</p>`;
+}
+function nfPick(i){
+  const c = CATALOG[i]; if(!c) return;
+  $("#nf_cat").value = c[0];
+  $("#nf_nom").value = c[1] + (c[4] ? " ("+c[4]+")" : "");
+  $("#nf_kcal").value = c[2];
+  $("#nf_prot").value = c[3];
+  $("#nf_results").innerHTML = ""; $("#nf_search").value = "";
+  toast("Valeurs du catalogue appliquées — clique Ajouter");
 }
 // Valeurs nutritionnelles automatiques (OpenFoodFacts)
 async function fetchFoodInfo(){
@@ -1413,6 +1505,8 @@ function renderAliments(){
   });
   html += `<div class="card"><h2>${IC.foods} Ajouter un aliment</h2>
     <div class="formgrid">
+      <input type="text" id="nf_search" placeholder="Recherche rapide dans le catalogue (35 aliments low FODMAP, valeurs vérifiées)…" oninput="nfSearch(this.value)">
+      <div id="nf_results"></div>
       <select id="nf_cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
       <input type="text" id="nf_nom" placeholder="Nom de l'aliment (low FODMAP de préférence)">
       <div class="row">
