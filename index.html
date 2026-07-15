@@ -568,8 +568,11 @@ function load(){
 let state = load();
 function save(){ localStorage.setItem(LS, JSON.stringify(state)); }
 
-function allFoods(cat){ return (FOODS[cat]||[]).concat(state.customFoods[cat]||[]); }
-function findFood(cat,id){ return allFoods(cat).find(f=>f.id===id); }
+function allFoodsRaw(cat){ return (FOODS[cat]||[]).concat(state.customFoods[cat]||[]); }
+// allFoods = choix proposés (sélecteurs, frigo, imports) — les aliments masqués en sont exclus.
+// findFood cherche dans TOUT (y compris masqués) : les menus/recettes existants continuent de calculer juste.
+function allFoods(cat){ const h=state.hiddenFoods||[]; return allFoodsRaw(cat).filter(f=>!h.includes(cat+"|"+f.id)); }
+function findFood(cat,id){ return allFoodsRaw(cat).find(f=>f.id===id); }
 function allRecipes(type){ return RECETTES.concat(state.customRecipes||[]).filter(r=>!type||r.type===type); }
 function findRecipe(id){ return RECETTES.concat(state.customRecipes||[]).find(r=>r.id===id); }
 
@@ -851,7 +854,8 @@ function renderDay(){
         </select>
       </div>`;
     m.items.forEach((it,ii)=>{
-      const foods = allFoods(it[0]);
+      let foods = allFoods(it[0]);
+      if(!foods.some(fd=>fd.id===it[1])){ const cf=findFood(it[0],it[1]); if(cf) foods=[cf,...foods]; } // aliment masqué encore présent dans ce repas
       html += `<div class="item">
         <select onchange="swapFood(${mi},${ii},this.value)">
           ${foods.map(fd=>`<option value="${fd.id}" ${fd.id===it[1]?"selected":""}>${esc(fd.nom)}</option>`).join("")}
@@ -1636,9 +1640,15 @@ function renderAliments(){
     ${allFoods(cat).map(f=>{
       const custom = (state.customFoods[cat]||[]).some(c=>c.id===f.id);
       return `<tr><td>${esc(f.nom)}${custom?' <span class="badge gold">ajouté</span>':''}</td><td>${f.kcal}</td><td>${f.prot}</td>
-      <td>${custom?`<button class="xbtn" onclick="delFood('${cat}','${f.id}')">✕</button>`:""}</td></tr>`;
+      <td>${custom?`<button class="xbtn" title="Supprimer" onclick="delFood('${cat}','${f.id}')">✕</button>`:`<button class="xbtn" title="Masquer des choix" onclick="hideFood('${cat}','${f.id}')">✕</button>`}</td></tr>`;
     }).join("")}</table></div>`;
   });
+  const hidden = state.hiddenFoods||[];
+  if(hidden.length){
+    html += `<div class="card"><h2>${IC.alert} Aliments masqués</h2>
+    <p class="muted" style="margin-bottom:8px">Retirés des sélecteurs, du frigo (Idées repas) et des imports. Les menus déjà planifiés qui les contiennent restent calculés correctement — remplace-les dans l'éditeur du jour si besoin.</p>
+    ${hidden.map(k=>{const [c,i]=k.split("|");const f=findFood(c,i);return f?`<div class="dayline" style="cursor:default"><span>${esc(f.nom)} <span class="muted">(${CATS[c]})</span></span><button class="btn small" onclick="unhideFood('${k}')">Réactiver</button></div>`:"";}).join("")}</div>`;
+  }
   html += `<div class="card"><h2>${IC.foods} Ajouter un aliment</h2>
     <div class="formgrid">
       <input type="text" id="nf_search" placeholder="Recherche dans le catalogue (${CATALOG.length} aliments, valeurs vérifiées + portions FODMAP)…" oninput="nfSearch(this.value)">
@@ -1669,6 +1679,18 @@ function addFood(){
 function delFood(cat,id){
   if(!confirm("Supprimer cet aliment de la base ?")) return;
   state.customFoods[cat]=(state.customFoods[cat]||[]).filter(f=>f.id!==id); save(); render(); toast("Aliment supprimé");
+}
+function hideFood(cat,id){
+  const f=findFood(cat,id); if(!f) return;
+  if(!confirm("Masquer « "+f.nom+" » des choix ? (réactivable en bas de page)")) return;
+  state.hiddenFoods=state.hiddenFoods||[];
+  const k=cat+"|"+id;
+  if(!state.hiddenFoods.includes(k)) state.hiddenFoods.push(k);
+  save(); render(); toast("Aliment masqué");
+}
+function unhideFood(k){
+  state.hiddenFoods=(state.hiddenFoods||[]).filter(x=>x!==k);
+  save(); render(); toast("Aliment réactivé");
 }
 
 /* ---------- Export CSV ---------- */
